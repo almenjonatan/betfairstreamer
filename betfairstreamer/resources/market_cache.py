@@ -1,7 +1,9 @@
-from betfairstreamer.resources.market_book import MarketBook
 from typing import Dict, List
+
 import attr
 import orjson
+
+from betfairstreamer.resources.market_book import MarketBook
 
 
 @attr.s

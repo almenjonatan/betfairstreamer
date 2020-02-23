@@ -1,8 +1,8 @@
+from enum import Enum, auto
+from typing import Dict, List
+
 import attr
-from enum import auto
-from enum import Enum
 from attr import asdict
-from typing import List, Dict
 
 
 def to_camel(snake: str):
@@ -170,4 +170,3 @@ class OrderSubscriptionMessage(Message):
     initial_clk = attr.ib(type=str, default=None)
     conflate_ms = attr.ib(type=int, default=None)
     order_filter = attr.ib(type=OrderFilter, default=None)
-

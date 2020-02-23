@@ -1,9 +1,11 @@
-import attr
 import enum
-import numpy as np
 from datetime import datetime
 from enum import auto
-from typing import List, Dict
+from typing import Dict, List
+
+import attr
+import numpy as np
+
 from betfairstreamer.utils import parse_betfair_date
 
 

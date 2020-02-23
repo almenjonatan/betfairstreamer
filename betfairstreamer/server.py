@@ -5,32 +5,31 @@ import os
 import socket
 import ssl
 import threading
-from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Dict, List
 
-import betfairlightweight
+import attr
 import orjson
 import zmq
-import attr
-import logging
-import time
-
 from betfairlightweight import APIClient
 
 from betfairstreamer.resources.api_messages import (
     AuthenticationMessage,
     ConnectionMessage,
-    MarketDataFilter,
-    MarketFilter,
-    MarketSubscriptionMessage,
-    OP,
     StatusCode,
     StatusMessage,
 )
+
 from betfairstreamer.resources.market_cache import MarketCache
 
-context = zmq.Context()
+zmq.Context()
 logging.basicConfig(level=logging.INFO)
+
+
+USERNAME: str = os.environ["USERNAME"]
+PASSWORD: str = os.environ["PASSWORD"]
+APP_KEY: str = os.environ["APP_KEY"]
+
+trading: APIClient = APIClient(USERNAME, PASSWORD, APP_KEY, locale="sweden")
 
 
 @attr.s
@@ -56,18 +55,18 @@ class BetfairConnection:
 
         ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, capath=self.cert_path)
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s = ssl_context.wrap_socket(s)
+        betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
 
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 33554432)
-        s.connect((self.hostname, self.port))
+        betfair_ssl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size)
+        betfair_ssl_socket.connect((self.hostname, self.port))
 
-        self.socket = s
+        self.socket = betfair_ssl_socket
 
-        msg = self.recieve()
-        msg = orjson.loads(msg[0])
+        byte_message = self.recieve()
+        json_message = orjson.loads(byte_message[0])  # pylint: disable=I1101
 
-        connection_message = ConnectionMessage.from_stream_message(msg)
+        connection_message = ConnectionMessage.from_stream_message(json_message)
         self.connection_id = connection_message.connection_id
 
         logging.info(connection_message)
@@ -77,7 +76,7 @@ class BetfairConnection:
         self.socket.close()
 
     def send(self, msg: Dict):
-        byte_msg: bytes = orjson.dumps(msg) + self.crlf
+        byte_msg: bytes = orjson.dumps(msg) + self.crlf  # pylint: disable=I1101
         self.socket.send(byte_msg)
 
     def recieve(self) -> List[bytes]:
@@ -88,7 +87,6 @@ class BetfairConnection:
         continue to parse rest of bytes to see if there are any other messages.
 
         If separator is not found then all messages have been parsed, save the reminder past the last \r\n as incomplete message.\
-        
         Returns: list of ResponseMessages byte encoded.
         """
 
@@ -121,59 +119,36 @@ class BetfairConnection:
         Returns: BetfairConnection (socket connected to Betfair)
         """
 
-        c = cls(name=name)
-        c.connect()
-        return c
-
-
-@attr.s
-class AuthenticationProvider:
-    """
-    Handles authentication to betfair. Authenticates connections that have been made to betfair.
-    """
-
-    USERNAME: str = os.environ["USERNAME"]
-    PASSWORD: str = os.environ["PASSWORD"]
-    APP_KEY: str = os.environ["APP_KEY"]
-
-    trading = attr.ib(type=APIClient, default=None)
-
-    def authenticate_connection(self, connection: BetfairConnection):
-        """ Authenticate BetfairConnection instance to betfair.
-        
-        Example:
-        connection = AuthenticationProvider.create_authentication_provider().authenticate(connection)
-        
-        Returns: BetfairConnection, authneticated with Betfair.
-        """
-        if self.trading.session_expired:
-            self.trading.login()
-
-        auth_message = AuthenticationMessage(
-            id=1, session=self.trading.session_token, app_key=self.trading.app_key,
-        )
-
-        logging.info(auth_message)
-
-        connection.send(auth_message.to_dict())
-
-        status_msg = orjson.loads(connection.recieve()[0])
-        status_msg = StatusMessage.from_stream_message(status_msg)
-
-        logging.info(status_msg)
-
+        connection = cls(name=name)
+        connection.connect()
         return connection
 
-    @classmethod
-    def create_authentication_provider(cls):
 
-        trading: APIClient = betfairlightweight.APIClient(
-            username=cls.USERNAME, password=cls.PASSWORD, app_key=cls.APP_KEY, locale="sweden"
-        )
+def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
+    """ Authenticate BetfairConnection instance to betfair.
+    Example:
+    connection = AuthenticationProvider.create_authentication_provider().authenticate(connection)
 
+    Returns: BetfairConnection, authneticated with Betfair.
+    """
+
+    if trading.session_expired:
         trading.login()
 
-        return cls(trading)
+    auth_message = AuthenticationMessage(
+        id=1, session=trading.session_token, app_key=trading.app_key,
+    )
+
+    logging.info(auth_message)
+
+    connection.send(auth_message.to_dict())
+
+    status_msg = orjson.loads(connection.recieve()[0])  # pylint: disable=I1101
+    status_msg = StatusMessage.from_stream_message(status_msg)
+
+    logging.info(status_msg)
+
+    return connection
 
 
 def state_manager():
@@ -201,7 +176,7 @@ def state_manager():
         events = dict(poller.poll())
 
         if peer_socket in events:
-            market_cache(orjson.loads(peer_socket.recv()))
+            market_cache(orjson.loads(peer_socket.recv()))  # pylint: disable=I1101
 
         if client_socket in events:
             client_socket.send_pyobj(market_cache)
@@ -210,26 +185,23 @@ def state_manager():
 @attr.s
 class Network:
     """
-    Handles all connections made to betfair. Publishes new messages to subscribed clients. 
+    Handles all connections made to betfair. Publishes new messages to subscribed clients.
     open/closes BetfairConnections to betfair.
     """
 
     peer_socket = attr.ib(type=zmq.Socket, default=None)
     pub_socket = attr.ib(type=zmq.Socket, default=None)
     client_socket = attr.ib(type=zmq.Socket, default=None)
+    api_socket = attr.ib(type=zmq.Socket, default=None)
 
     poller = attr.ib(type=zmq.Poller, factory=zmq.Poller)
     connections = attr.ib(type=Dict[int, BetfairConnection], factory=dict)
     message_handler = attr.ib(type=list, factory=list)
 
-    authentication_provider = attr.ib(
-        type=AuthenticationProvider, factory=AuthenticationProvider.create_authentication_provider
-    )
-
     def read_loop(self):
         """
         Reads messages from BetfairConnections and publish them to statemanager and subscribed clients.
-        Reads client request that wants open/close new streams to betfair. 
+        Reads client request that wants open/close new streams to betfair.
         """
 
         self.connect()
@@ -238,26 +210,18 @@ class Network:
         while True:
             events = self.poller.poll()
 
-            for s, _ in events:
-                if s == self.api_socket:
-                    msg = orjson.loads(s.recv())
+            for fd, _ in events:
+                if fd == self.api_socket:
+                    message = orjson.loads(fd.recv())  # pylint: disable=I1101
 
-                    if msg["op"] == "subscription":
-                        self.subscribe(msg["name"], msg["subscription_message"])
+                    if message["op"] == "subscription":
+                        self.subscribe(message["name"], message["subscription_message"])
                 else:
-                    msg = self.connections[s].recieve()
+                    messages = self.connections[fd].recieve()
 
-                    if msg == b"{}":
-                        continue
-                    for m in msg:
-                        self.peer_socket.send(m, zmq.NOBLOCK)  # pylint: disable=no-member
-                        self.pub_socket.send(m, zmq.NOBLOCK)  # pylint: disable=no-member
-
-    def create_connection(self, stream_name: str):
-        c = BetfairConnection.create_connection(name="MarketStream")
-        c = self.authentication_provider.authenticate_connection(c)
-
-        return c
+                    for message in messages:
+                        self.peer_socket.send(message, zmq.NOBLOCK)  # pylint: disable=no-member
+                        self.pub_socket.send(message, zmq.NOBLOCK)  # pylint: disable=no-member
 
     def register_connection(self, connection: BetfairConnection):
         self.connections[connection.socket.fileno()] = connection
@@ -273,16 +237,19 @@ class Network:
 
         DO NOT USE DIRECTLY! Use the provided client to make request.
         """
+        connection = authenticate_connection(BetfairConnection.create_connection(name=stream_name))
 
-        c = self.create_connection(stream_name)
-        c.send(subscription_message)
-        status_message = StatusMessage.from_stream_message(orjson.loads(c.recieve()[0]))
+        connection.send(subscription_message)
+
+        status_message = StatusMessage.from_stream_message(
+            orjson.loads(connection.recieve()[0])  # pylint: disable=I1101
+        )
 
         if status_message.status_code == StatusCode.FAILURE:
             logging.warning(status_message)
         else:
-            logging.info(f"Stream: {stream_name}, status: {status_message}")
-            self.register_connection(c)
+            logging.info("Stream: %s, status: %s", stream_name, status_message)
+            self.register_connection(connection)
 
     def connect(self):
         context = zmq.Context.instance()
@@ -301,24 +268,7 @@ class Network:
 
     @classmethod
     def create_betfair_server(cls):
-        c = cls()
-        threading.Thread(target=c.read_loop).start()
+        server = cls()
+        threading.Thread(target=server.read_loop).start()
 
-        return c
-
-
-if __name__ == "__main__":
-
-    c = BetfairConnection.create_connection("market_stream")
-    a = AuthenticationProvider.create_authentication_provider()
-    c = a.authenticate_connection(c)
-
-    market_filter = MarketFilter(event_ids=[29682729])
-    subscription_message = MarketSubscriptionMessage(market_filter=market_filter)
-
-    c.send(subscription_message.to_dict())
-
-    while True:
-        msg = c.recieve()
-        if msg:
-            print(msg)
+        return server

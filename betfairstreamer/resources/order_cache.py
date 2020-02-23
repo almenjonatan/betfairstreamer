@@ -1,11 +1,12 @@
-import attr
 import os
-import betfairlightweight
-
-from betfairlightweight import APIClient
+from collections import defaultdict
 from enum import Enum, auto
 from typing import Dict, Tuple
-from collections import defaultdict
+
+import attr
+import betfairlightweight
+from betfairlightweight import APIClient
+
 from betfairstreamer.utils import parse_betfair_date
 
 USERNAME: str = os.environ["USERNAME"]

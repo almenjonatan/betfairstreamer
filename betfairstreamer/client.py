@@ -1,10 +1,8 @@
 import attr
-import zmq
 import orjson
+import zmq
 
 from betfairstreamer.resources.api_messages import MarketSubscriptionMessage
-
-import logging
 
 
 @attr.s
@@ -16,7 +14,7 @@ class BetfairAPIClient:
 
     def subscribe(self, name: str, subscription_message: MarketSubscriptionMessage):
         self.client_socket.send(
-            orjson.dumps(
+            orjson.dumps(  # pylint: disable=I1101
                 {
                     "op": "subscription",
                     "name": name,
