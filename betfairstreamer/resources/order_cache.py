@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from enum import Enum, auto
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
 import attr
 import betfairlightweight

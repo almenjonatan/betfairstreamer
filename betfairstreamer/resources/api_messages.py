@@ -1,11 +1,12 @@
+import json
+from datetime import datetime
 from enum import Enum, auto
 from typing import Dict, List
-from enum import Enum
+
 import attr
 from attr import asdict
+
 from betfairstreamer.utils import parse_betfair_date
-from datetime import datetime
-import json
 
 
 def to_camel(snake: str):
@@ -118,8 +119,8 @@ class AuthenticationMessage(BetfairAPISerializer):
 class StatusMessage:
     op = attr.ib(type=OP)
     id = attr.ib(type=int)
+    status_code = attr.ib(type=StatusCode)
     connections_available = attr.ib(type=int)
-    status_code = attr.ib(type=StatusCode, default=None)
     connection_closed = attr.ib(type=str, default=None)
     error_code = attr.ib(type=ErrorCode, default=None)
     error_message = attr.ib(type=str, default=None)
@@ -129,6 +130,7 @@ class StatusMessage:
         return cls(
             op=OP[msg.get("op")],
             id=msg.get("id"),
+            error_message=msg.get("errorMessage"),
             error_code=msg.get("errorCode"),
             connection_closed=msg.get("connectionClosed"),
             status_code=StatusCode[msg.get("statusCode")],

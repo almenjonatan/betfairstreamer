@@ -1,4 +1,4 @@
-##### Usage
+## Usage
 
 The following creates a connection to betfair and returns the raw messages
 

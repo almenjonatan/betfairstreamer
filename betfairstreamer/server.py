@@ -1,5 +1,6 @@
 """"Server for Betfair Exchange Stream API, receives and publishes messages from Betfair."""
 
+import json
 import logging
 import os
 import socket
@@ -12,15 +13,10 @@ import orjson
 import zmq
 from betfairlightweight import APIClient
 
-from betfairstreamer.resources.api_messages import (
-    AuthenticationMessage,
-    ConnectionMessage,
-    StatusCode,
-    StatusMessage,
-)
-
+from betfairstreamer.resources.api_messages import (AuthenticationMessage,
+                                                    ConnectionMessage,
+                                                    StatusCode, StatusMessage)
 from betfairstreamer.resources.market_cache import MarketCache
-import json
 
 zmq.Context()
 logging.basicConfig(level=logging.INFO)
@@ -289,3 +285,7 @@ class Network:
         threading.Thread(target=server.read_loop).start()
 
         return server
+
+
+if __name__ == "__main__":
+    Network.create_betfair_server()

@@ -6,8 +6,9 @@ from typing import Dict, List
 import attr
 import numpy as np
 
+from betfairstreamer.resources.api_messages import (MarketDefinition,
+                                                    RunnerDefinition)
 from betfairstreamer.utils import parse_betfair_date
-from betfairstreamer.resources.api_messages import MarketDefinition, RunnerDefinition
 
 
 @attr.s

@@ -1,16 +1,13 @@
-from betfairstreamer.server import BetfairConnection
-from betfairstreamer.resources.api_messages import (
-    AuthenticationMessage,
-    Field,
-    MarketDataFilter,
-    MarketFilter,
-    MarketSubscriptionMessage,
-    OP,
-)
-from betfairstreamer.resources.market_cache import MarketCache
-import orjson
 import json
 
+import orjson
+
+from betfairstreamer.resources.api_messages import (OP, AuthenticationMessage,
+                                                    Field, MarketDataFilter,
+                                                    MarketFilter,
+                                                    MarketSubscriptionMessage)
+from betfairstreamer.resources.market_cache import MarketCache
+from betfairstreamer.server import BetfairConnection
 
 c = BetfairConnection.create_connection("market_stream")
 
