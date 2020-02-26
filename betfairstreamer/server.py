@@ -79,7 +79,10 @@ class BetfairConnection:
         self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
-    def send(self, msg: Dict):
+    def send(self, msg):
+        if not isinstance(msg, dict):
+            msg = msg.to_dict()
+
         msg["id"] = self.id
         self.id += 1
 

@@ -24,9 +24,7 @@ market_subscription = MarketSubscriptionMessage(
     market_filter=market_filter, market_data_filter=market_data_filter
 )
 
-print(json.dumps(market_subscription.to_dict()))
-
-c.send(market_subscription.to_dict())
+c.send(market_subscription)
 
 print(c.recieve())
 mc = MarketCache()
