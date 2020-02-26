@@ -12,17 +12,17 @@ class BetfairAPIClient:
     state_socket = attr.ib()
     sub_socket = attr.ib()
 
-    def subscribe(self, name: str, subscription_message: MarketSubscriptionMessage):
-        self.client_socket.send(
-            orjson.dumps(  # pylint: disable=I1101
-                {
-                    "op": "subscription",
-                    "name": name,
-                    "subscription_message": subscription_message.to_dict(),
-                }
-            ),
-            zmq.NOBLOCK,  # pylint: disable=no-member
-        )
+    # def subscribe(self, name: str, subscription_message: MarketSubscriptionMessage):
+    #     self.client_socket.send(
+    #         orjson.dumps(  # pylint: disable=I1101
+    #             {
+    #                 "op": "subscription",
+    #                 "name": name,
+    #                 "subscription_message": subscription_message.to_dict(),
+    #             }
+    #         ),
+    #         zmq.NOBLOCK,  # pylint: disable=no-member
+    #     )
 
     def get_market_cache(self):
         self.state_socket.send(b"GIVE ME STATE")
@@ -44,4 +44,8 @@ class BetfairAPIClient:
         sub_socket = context.socket(zmq.SUB)  # pylint: disable=no-member
         sub_socket.setsockopt(zmq.SUBSCRIBE, b"")  # pylint: disable=no-member
 
-        return cls(client_socket=client_socket, state_socket=state_socket, sub_socket=sub_socket)
+        return cls(
+            client_socket=client_socket,
+            state_socket=state_socket,
+            sub_socket=sub_socket,
+        )

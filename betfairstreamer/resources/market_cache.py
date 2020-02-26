@@ -21,10 +21,14 @@ class MarketCache:
         for market_update in stream_update.get("mc", []):
 
             if market_book := self.market_books.get(market_update["id"]):
-                market_book.update(market_update)
-                updated_market_books.append(market_book)
+                if market_book is not None:
+                    market_book.update(market_update)
+                    updated_market_books.append(market_book)
             else:
                 market_book = MarketBook.from_betfair_dict(market_update)
+
+                assert market_book is not None
+
                 self.market_books[market_book.market_id] = market_book
                 updated_market_books.append(market_book)
 

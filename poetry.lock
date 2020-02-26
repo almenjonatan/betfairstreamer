@@ -7,7 +7,7 @@ python-versions = "*"
 version = "1.4.3"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "An abstract syntax tree for Python with inference support."
 name = "astroid"
 optional = false
@@ -108,7 +108,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "7.0"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Cross-platform colored terminal text."
 name = "colorama"
 optional = false
@@ -166,7 +166,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "2.8"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "A Python utility / library to sort Python imports."
 name = "isort"
 optional = false
@@ -180,7 +180,7 @@ requirements = ["pipreqs", "pip-api"]
 xdg_home = ["appdirs (>=1.4.0)"]
 
 [[package]]
-category = "main"
+category = "dev"
 description = "A fast and thorough lazy object proxy."
 name = "lazy-object-proxy"
 optional = false
@@ -188,7 +188,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "1.4.3"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "McCabe checker, plugin for flake8"
 name = "mccabe"
 optional = false
@@ -241,7 +241,7 @@ description = "Fast, correct Python JSON library supporting dataclasses, datetim
 name = "orjson"
 optional = false
 python-versions = ">=3.6"
-version = "2.5.0"
+version = "2.5.1"
 
 [[package]]
 category = "dev"
@@ -291,7 +291,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "1.8.1"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "python code static checker"
 name = "pylint"
 optional = false
@@ -415,7 +415,7 @@ security = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)"]
 socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7)", "win-inet-pton"]
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Python 2 and 3 compatibility utilities"
 name = "six"
 optional = false
@@ -498,7 +498,7 @@ python-versions = "*"
 version = "0.1.8"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Module for decorators, wrappers and monkey patching."
 name = "wrapt"
 optional = false
@@ -506,7 +506,7 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "97c6c63a1daf3c37df3facfaf459e72d3e520051ffebe925192666a7abc1fae0"
+content-hash = "730dc8e5465978892fbaff7fa8db1d292714fb33865b557d364cfaad2455d133"
 python-versions = "^3.8.0"
 
 [metadata.files]
@@ -676,17 +676,17 @@ numpy = [
     {file = "numpy-1.18.1.zip", hash = "sha256:b6ff59cee96b454516e47e7721098e6ceebef435e3e21ac2d6c3b8b02628eb77"},
 ]
 orjson = [
-    {file = "orjson-2.5.0-cp36-cp36m-macosx_10_7_x86_64.whl", hash = "sha256:1834a3bfab3c41defe155c9d184f8b2652879f67784f1b0bf91bbdb73856914b"},
-    {file = "orjson-2.5.0-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:f9c2cdee763f313eb9bd34bd3d644eee4ba91d97c85f8245881815552f15d725"},
-    {file = "orjson-2.5.0-cp36-none-win_amd64.whl", hash = "sha256:35ce24c5588b730c0de9527fe15d4437a142f6726b27893a265543e4a89d7901"},
-    {file = "orjson-2.5.0-cp37-cp37m-macosx_10_7_x86_64.whl", hash = "sha256:02d895aade91399525e749a4d309cbe8a4b6fab10d987585cab4197be631dcd8"},
-    {file = "orjson-2.5.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:0c46875d5826a66aa56c8e5ba3cfb971996f602ed0bcc3453171448ddcf9bd0d"},
-    {file = "orjson-2.5.0-cp37-none-win_amd64.whl", hash = "sha256:cc403250fdfbbc461dfa3745b7100a580301fc8a7b4b034f0d853f71b741da5c"},
-    {file = "orjson-2.5.0-cp38-cp38-macosx_10_7_x86_64.whl", hash = "sha256:2de0661b0520ed2b1e0dbce0cf4f71d24be46cf2c5e5f794d5f80a30ed720815"},
-    {file = "orjson-2.5.0-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:890e187c157bea8bced3227b54188962e35147835d524954de6e5915cc080b5e"},
-    {file = "orjson-2.5.0-cp38-none-win_amd64.whl", hash = "sha256:e96139b322539873a90c80673b9fe9c789c62b2b1327d5cdf7301ea42efb21f8"},
-    {file = "orjson-2.5.0-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:689cf056bbc048e07818d678c08e54bab7400cf0cbb1f7d5c00631e875bf7ebd"},
-    {file = "orjson-2.5.0.tar.gz", hash = "sha256:cbd4fe1d687c5bf1440036b0255eb4d39153a692b1cd6b5b0080520283ced9cc"},
+    {file = "orjson-2.5.1-cp36-cp36m-macosx_10_7_x86_64.whl", hash = "sha256:45e87784efe07b465a60673bacc91407b09f984a420479fe5f6b0fb143f985b2"},
+    {file = "orjson-2.5.1-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:60a9f1061fe04b5249aa16a92012899e24ff6422ccde39c9bfeedc41159588f6"},
+    {file = "orjson-2.5.1-cp36-none-win_amd64.whl", hash = "sha256:ef89160b3b1890cd9353a14c8083e927363c7cb7fefabb071ca2a0d7888fd543"},
+    {file = "orjson-2.5.1-cp37-cp37m-macosx_10_7_x86_64.whl", hash = "sha256:a3c3594a587a7de9c1416a85b3cc9383283f7370a670789fbd8077b21c80dc24"},
+    {file = "orjson-2.5.1-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:5a19c8f0023c5d04211261915b1116de4de0318e414f8e60819943e6f94d5690"},
+    {file = "orjson-2.5.1-cp37-none-win_amd64.whl", hash = "sha256:63815d36c3a0ad0922990faf01aa1344facf662322c572cd2a9a5ef9ab0f8903"},
+    {file = "orjson-2.5.1-cp38-cp38-macosx_10_7_x86_64.whl", hash = "sha256:a23d88f79534336bfccf75313d7c45e54615753970134cd4fdfcfada09d884ed"},
+    {file = "orjson-2.5.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:afa6b0662116fb8e03604dc4c8eb8d8fc07a0c9c5401b3aa4bb9ed75e9a91fb1"},
+    {file = "orjson-2.5.1-cp38-none-win_amd64.whl", hash = "sha256:01d6e8a5bdd5cd75e8e241ec837073236b557e9f3e8d35ddb4bccb418c61721e"},
+    {file = "orjson-2.5.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:1b4ce958d6e356f2c8eee65e1201d9c04b50a44d398e0febb744c6a7afa05223"},
+    {file = "orjson-2.5.1.tar.gz", hash = "sha256:af588778834e195085b5ab64a7ba1642722ede82e4668c6a9cb57a66458633cf"},
 ]
 packaging = [
     {file = "packaging-20.1-py2.py3-none-any.whl", hash = "sha256:170748228214b70b672c581a3dd610ee51f733018650740e98c7df862a583f73"},

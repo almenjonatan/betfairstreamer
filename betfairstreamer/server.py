@@ -20,6 +20,7 @@ from betfairstreamer.resources.api_messages import (
 )
 
 from betfairstreamer.resources.market_cache import MarketCache
+import json
 
 zmq.Context()
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +41,7 @@ class BetfairConnection:
     """
 
     name = attr.ib(type=str)
+    id = attr.ib(type=int, default=1)
     cert_path = attr.ib(type=str, default=os.environ["CERT_PATH"])
     hostname = attr.ib(type=str, default="stream-api.betfair.com")
     port = attr.ib(type=int, default=443)
@@ -53,7 +55,9 @@ class BetfairConnection:
         Create a SSLSocket, connects to betfair
         """
 
-        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, capath=self.cert_path)
+        ssl_context = ssl.create_default_context(
+            ssl.Purpose.CLIENT_AUTH, capath=self.cert_path
+        )
 
         betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
@@ -76,7 +80,11 @@ class BetfairConnection:
         self.socket.close()
 
     def send(self, msg: Dict):
-        byte_msg: bytes = orjson.dumps(msg) + self.crlf  # pylint: disable=I1101
+        msg["id"] = self.id
+        self.id += 1
+
+        byte_msg = json.dumps(msg).encode("utf-8") + self.crlf
+
         self.socket.send(byte_msg)
 
     def recieve(self) -> List[bytes]:
@@ -121,7 +129,7 @@ class BetfairConnection:
 
         connection = cls(name=name)
         connection.connect()
-        return connection
+        return authenticate_connection(connection)
 
 
 def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
@@ -220,8 +228,12 @@ class Network:
                     messages = self.connections[fd].recieve()
 
                     for message in messages:
-                        self.peer_socket.send(message, zmq.NOBLOCK)  # pylint: disable=no-member
-                        self.pub_socket.send(message, zmq.NOBLOCK)  # pylint: disable=no-member
+                        self.peer_socket.send(
+                            message, zmq.NOBLOCK  # pylint: disable=no-member
+                        )
+                        self.pub_socket.send(
+                            message, zmq.NOBLOCK  # pylint: disable=no-member
+                        )
 
     def register_connection(self, connection: BetfairConnection):
         self.connections[connection.socket.fileno()] = connection
@@ -237,7 +249,9 @@ class Network:
 
         DO NOT USE DIRECTLY! Use the provided client to make request.
         """
-        connection = authenticate_connection(BetfairConnection.create_connection(name=stream_name))
+        connection = authenticate_connection(
+            BetfairConnection.create_connection(name=stream_name)
+        )
 
         connection.send(subscription_message)
 

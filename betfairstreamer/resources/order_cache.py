@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from enum import Enum, auto
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
 import attr
 import betfairlightweight
@@ -109,12 +109,20 @@ def default_d(t):
 @attr.s(slots=True, weakref_slot=False)
 class OrderCache:
     orders = attr.ib(type=Dict[str, Order], factory=dict)
-    size_matched = attr.ib(type=Dict[Tuple[str, int, str], float], factory=default_d(float))
-    size_cancelled = attr.ib(type=Dict[Tuple[str, int, str], float], factory=default_d(float))
-    size_voided = attr.ib(type=Dict[Tuple[str, int, str], float], factory=default_d(float))
-    size_remaining = attr.ib(type=Dict[Tuple[str, int, str], float], factory=default_d(float))
+    size_matched = attr.ib(
+        type=Dict[Tuple[str, int, Side], float], factory=default_d(float)
+    )
+    size_cancelled = attr.ib(
+        type=Dict[Tuple[str, int, Side], float], factory=default_d(float)
+    )
+    size_voided = attr.ib(
+        type=Dict[Tuple[str, int, Side], float], factory=default_d(float)
+    )
+    size_remaining = attr.ib(
+        type=Dict[Tuple[str, int, Side], float], factory=default_d(float)
+    )
     market_orders = attr.ib(
-        type=Dict[Tuple[str, int, str], Dict[str, Order]], factory=default_d(dict)
+        type=Dict[Tuple[str, int, Side], Dict[str, Order]], factory=default_d(dict)
     )
 
     latest_order = attr.ib(type=Dict[Tuple[str, int, str], Order], factory=dict)
@@ -127,17 +135,22 @@ class OrderCache:
 
     def update_order(self, market_id: str, selection_id: int, order: Order):
 
-        cached_order = self.orders.get(order.bet_id, {})
+        cached_order: Optional[Order] = self.orders.get(order.bet_id)
+
         key = (market_id, selection_id, order.side)
 
         if cached_order:
             self.size_matched[key] += order.size_matched - cached_order.size_matched
 
-            self.size_cancelled[key] += order.size_cancelled - cached_order.size_cancelled
+            self.size_cancelled[key] += (
+                order.size_cancelled - cached_order.size_cancelled
+            )
 
             self.size_voided[key] += order.size_voided - cached_order.size_voided
 
-            self.size_remaining[key] -= cached_order.size_remaining - order.size_remaining
+            self.size_remaining[key] -= (
+                cached_order.size_remaining - order.size_remaining
+            )
 
         else:
             self.size_matched[key] += order.size_matched
@@ -147,37 +160,43 @@ class OrderCache:
 
         self.orders[order.bet_id] = order
 
-    def get_latest_order(self, market_id, selection_id, side) -> Order:
+    def get_latest_order(self, market_id, selection_id, side) -> Optional[Order]:
         return self.latest_order.get((market_id, selection_id, side))
 
-    def get_size_matched(self, market_id, selection_id, side) -> float:
+    def get_size_matched(self, market_id, selection_id, side) -> Optional[float]:
         return self.size_matched.get((market_id, selection_id, side), 0)
 
-    def get_size_remaining(self, market_id, selection_id, side) -> float:
+    def get_size_remaining(self, market_id, selection_id, side) -> Optional[float]:
         return self.size_remaining.get((market_id, selection_id, side), 0)
 
-    def get_size_cancelled(self, market_id, selection_id, side) -> float:
+    def get_size_cancelled(self, market_id, selection_id, side) -> Optional[float]:
         return self.size_cancelled.get((market_id, selection_id, side), 0)
 
-    def get_size_voided(self, market_id, selection_id, side) -> float:
-        return self.size_voided((market_id, selection_id, side))
+    def get_size_voided(self, market_id, selection_id, side) -> Optional[float]:
+        return self.size_voided.get((market_id, selection_id, side))
 
     def get_size_matched_equal(self, market_id, selection_id) -> bool:
-        return self.get_size_matched(market_id, selection_id, Side.BACK) == self.get_size_matched(
-            market_id, selection_id, Side.LAY
-        )
+        return self.get_size_matched(
+            market_id, selection_id, Side.BACK
+        ) == self.get_size_matched(market_id, selection_id, Side.LAY)
 
     def get_size_matched_balance(self, market_id, selection_id):
-        return self.get_size_matched(market_id, selection_id, Side.BACK) - self.get_size_matched(
-            market_id, selection_id, Side.LAY
-        )
+        return self.get_size_matched(
+            market_id, selection_id, Side.BACK
+        ) - self.get_size_matched(market_id, selection_id, Side.LAY)
 
     def get_trade_balance(self, market_id, selection_id):
-        back_bets_size_matched = self.get_size_matched(market_id, selection_id, Side.BACK)
+        back_bets_size_matched = self.get_size_matched(
+            market_id, selection_id, Side.BACK
+        )
         lay_bets_size_matched = self.get_size_matched(market_id, selection_id, Side.LAY)
 
-        back_bets_size_remaining = self.get_size_remaining(market_id, selection_id, Side.BACK)
-        lay_bets_size_remaining = self.get_size_remaining(market_id, selection_id, Side.LAY)
+        back_bets_size_remaining = self.get_size_remaining(
+            market_id, selection_id, Side.BACK
+        )
+        lay_bets_size_remaining = self.get_size_remaining(
+            market_id, selection_id, Side.LAY
+        )
 
         return round(
             back_bets_size_matched
