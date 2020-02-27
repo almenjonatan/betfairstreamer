@@ -257,10 +257,10 @@ class APIServer:
         context = zmq.Context.instance()
 
         api_socket = context.socket(zmq.PAIR)
-        api_socket.bind("tcp://127.0.0.1:5556")
+        api_socket.bind("tcp://*:5556")
 
         pub_socket = context.socket(zmq.PUB)
-        pub_socket.bind("tcp://127.0.0.1:5557")
+        pub_socket.bind("tcp://*:5557")
 
         threading.Thread(
             target=cls(api_socket=api_socket, pub_socket=pub_socket).start
