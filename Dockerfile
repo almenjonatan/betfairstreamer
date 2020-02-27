@@ -10,9 +10,9 @@ RUN poetry config virtualenvs.create false
 COPY pyproject.toml pyproject.toml
 COPY poetry.lock poetry.lock
 
-COPY betfairstreamer betfairstreamer
-
 RUN poetry update
+
+COPY betfairstreamer betfairstreamer
 
 ENV PYTHONPATH /app
 

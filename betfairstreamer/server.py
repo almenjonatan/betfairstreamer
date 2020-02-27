@@ -13,12 +13,18 @@ import orjson
 import zmq
 from betfairlightweight import APIClient
 
-from betfairstreamer.resources.api_messages import (AuthenticationMessage,
-                                                    ConnectionMessage,
-                                                    StatusCode, StatusMessage)
+from betfairstreamer.resources.api_messages import (
+    AuthenticationMessage,
+    ConnectionMessage,
+    StatusCode,
+    StatusMessage,
+)
 from betfairstreamer.resources.market_cache import MarketCache
+import time
 
-zmq.Context()
+context = zmq.Context()
+poller = zmq.Poller()
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -36,7 +42,6 @@ class BetfairConnection:
     sending messages to betfair exchange stream API.
     """
 
-    name = attr.ib(type=str)
     id = attr.ib(type=int, default=1)
     cert_path = attr.ib(type=str, default=os.environ["CERT_PATH"])
     hostname = attr.ib(type=str, default="stream-api.betfair.com")
@@ -119,14 +124,14 @@ class BetfairConnection:
         return messages
 
     @classmethod
-    def create_connection(cls, name):
+    def create_connection(cls):
         """Create BetfairConnection instance, connect it to betfair, needs to be authenticated to be able to send,
         subscription messages and receive stream updates.
 
         Returns: BetfairConnection (socket connected to Betfair)
         """
 
-        connection = cls(name=name)
+        connection = cls()
         connection.connect()
         return authenticate_connection(connection)
 
@@ -158,134 +163,109 @@ def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
     return connection
 
 
-def state_manager():
-    """
-    Keeping track of updates from betfair. Handles new clients joining late sends a snapshot
-    of the current market_cache state.
-    """
+@attr.s
+class ConnectionHandler:
+    connections = attr.ib(type=Dict[int, BetfairConnection], factory=dict)
 
-    context = zmq.Context.instance()
-    peer_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
-    peer_socket.connect("inproc://statemanager")
+    poller = attr.ib(type=zmq.Poller, factory=zmq.Poller)
 
-    client_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
-    client_socket.bind("tcp://127.0.0.1:5555")
+    connection_messages = attr.ib(type=List[Dict], factory=list)
 
-    poller = zmq.Poller()
+    def create_connections(self, subscription_messages: Dict):
+        self.connection_messages = []
 
-    poller.register(peer_socket, zmq.POLLIN)
-    poller.register(client_socket, zmq.POLLIN)
+        for subscription_message in subscription_messages:
+            self.connection_messages.append(subscription_message)
 
-    market_cache = MarketCache()
-    logging.info("StateManager started")
+            connection = BetfairConnection.create_connection()
+            connection.send(subscription_message)
 
-    while True:
-        events = dict(poller.poll())
+            logging.info(
+                StatusMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
+            )
 
-        if peer_socket in events:
-            market_cache(orjson.loads(peer_socket.recv()))  # pylint: disable=I1101
+            self.connections[connection.socket.fileno()] = connection
+            self.poller.register(connection.socket, zmq.POLLIN)
 
-        if client_socket in events:
-            client_socket.send_pyobj(market_cache)
+    def close_all_connections(self):
+
+        for k, v in self.connections.items():
+            self.poller.unregister(v.socket)
+            v.socket.shutdown(socket.SHUT_RDWR)
+            v.socket.close()
+
+    def get_connection(self, fd: int):
+        return self.connections[fd]
 
 
 @attr.s
-class Network:
-    """
-    Handles all connections made to betfair. Publishes new messages to subscribed clients.
-    open/closes BetfairConnections to betfair.
-    """
+class APIServer:
 
-    peer_socket = attr.ib(type=zmq.Socket, default=None)
     pub_socket = attr.ib(type=zmq.Socket, default=None)
-    client_socket = attr.ib(type=zmq.Socket, default=None)
     api_socket = attr.ib(type=zmq.Socket, default=None)
 
-    poller = attr.ib(type=zmq.Poller, factory=zmq.Poller)
-    connections = attr.ib(type=Dict[int, BetfairConnection], factory=dict)
-    message_handler = attr.ib(type=list, factory=list)
+    read_loop_thread = attr.ib(type=threading.Thread, default=None)
+
+    connection_handler = attr.ib(type=ConnectionHandler, factory=ConnectionHandler)
+
+    running = attr.ib(type=bool, default=False)
 
     def read_loop(self):
-        """
-        Reads messages from BetfairConnections and publish them to statemanager and subscribed clients.
-        Reads client request that wants open/close new streams to betfair.
-        """
+        while self.running:
+            for fd, _ in self.connection_handler.poller.poll():
+                for m in self.connection_handler.get_connection(fd).recieve():
+                    self.pub_socket.send(m)
 
-        self.connect()
-        logging.info("Initialization done! Server ready for subscriptions.")
+        self.connection_handler.close_all_connections()
 
+    def start(self):
+        logging.info("WAITING FOR SUBSCRIPTIONS")
         while True:
-            events = self.poller.poll()
+            msg = orjson.loads(self.api_socket.recv())
 
-            for fd, _ in events:
-                if fd == self.api_socket:
-                    message = orjson.loads(fd.recv())  # pylint: disable=I1101
+            if msg["op"] == "subscription":
+                self.start_everything(msg)
 
-                    if message["op"] == "subscription":
-                        self.subscribe(message["name"], message["subscription_message"])
-                else:
-                    messages = self.connections[fd].recieve()
+            if msg["op"] == "unsubscribe":
+                self.close_everything()
 
-                    for message in messages:
-                        self.peer_socket.send(
-                            message, zmq.NOBLOCK  # pylint: disable=no-member
-                        )
-                        self.pub_socket.send(
-                            message, zmq.NOBLOCK  # pylint: disable=no-member
-                        )
+            if msg["op"] == "list":
+                self.api_socket.send(
+                    orjson.dumps(self.connection_handler.connection_messages)
+                )
 
-    def register_connection(self, connection: BetfairConnection):
-        self.connections[connection.socket.fileno()] = connection
-        self.poller.register(connection.socket, zmq.POLLIN)
-        return connection
+    def start_everything(self, msg):
+        if self.running:
+            self.close_everything()
 
-    def subscribe(self, stream_name: str, subscription_message: Dict):
-        """
-        Used internally by Network(), creates a new connection to betfair and tries to subscribe to the markets supplied.
+        self.running = True
+        self.connection_handler.create_connections(msg["subscription_messages"])
+        self.read_loop_thread = threading.Thread(target=self.read_loop)
+        self.read_loop_thread.start()
 
-        NOTE: Subscribing to new markets might slow down publishing new messages while connecting to new streams, connect if you cant handle
-        a little delay on published messages.
+    def close_everything(self):
+        logging.info("STOPPING ALL STREAMS ...")
 
-        DO NOT USE DIRECTLY! Use the provided client to make request.
-        """
-        connection = authenticate_connection(
-            BetfairConnection.create_connection(name=stream_name)
-        )
+        if self.running:
+            self.running = False
+            self.read_loop_thread.join()
 
-        connection.send(subscription_message)
-
-        status_message = StatusMessage.from_stream_message(
-            orjson.loads(connection.recieve()[0])  # pylint: disable=I1101
-        )
-
-        if status_message.status_code == StatusCode.FAILURE:
-            logging.warning(status_message)
-        else:
-            logging.info("Stream: %s, status: %s", stream_name, status_message)
-            self.register_connection(connection)
-
-    def connect(self):
-        context = zmq.Context.instance()
-        self.peer_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
-        self.peer_socket.bind("inproc://statemanager")
-        self.poller.register(self.peer_socket, zmq.POLLIN)
-
-        threading.Thread(target=state_manager, daemon=True).start()
-
-        self.api_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
-        self.api_socket.bind("tcp://127.0.0.1:5556")
-        self.poller.register(self.api_socket, zmq.POLLIN)
-
-        self.pub_socket = context.socket(zmq.PUB)  # pylint: disable=no-member
-        self.pub_socket.bind("tcp://127.0.0.1:5557")
+            logging.info("SUCCESSFULLY CLOSED ALL STREAMS! ")
 
     @classmethod
-    def create_betfair_server(cls):
-        server = cls()
-        threading.Thread(target=server.read_loop).start()
+    def create_api_server(cls):
+        context = zmq.Context.instance()
 
-        return server
+        api_socket = context.socket(zmq.PAIR)
+        api_socket.bind("tcp://127.0.0.1:5556")
+
+        pub_socket = context.socket(zmq.PUB)
+        pub_socket.bind("tcp://127.0.0.1:5557")
+
+        threading.Thread(
+            target=cls(api_socket=api_socket, pub_socket=pub_socket).start
+        ).start()
 
 
 if __name__ == "__main__":
-    Network.create_betfair_server()
+    api_server = APIServer.create_api_server()

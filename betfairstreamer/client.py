@@ -1,51 +1,59 @@
 import attr
-import orjson
 import zmq
+import json
+import orjson
+from typing import List, Union
 
-from betfairstreamer.resources.api_messages import MarketSubscriptionMessage
+from betfairstreamer.resources.api_messages import (
+    MarketSubscriptionMessage,
+    OrderSubscriptionMessage,
+)
 
 
 @attr.s
 class BetfairAPIClient:
 
-    client_socket = attr.ib()
-    state_socket = attr.ib()
+    api_socket = attr.ib()
     sub_socket = attr.ib()
 
-    # def subscribe(self, name: str, subscription_message: MarketSubscriptionMessage):
-    #     self.client_socket.send(
-    #         orjson.dumps(  # pylint: disable=I1101
-    #             {
-    #                 "op": "subscription",
-    #                 "name": name,
-    #                 "subscription_message": subscription_message.to_dict(),
-    #             }
-    #         ),
-    #         zmq.NOBLOCK,  # pylint: disable=no-member
-    #     )
+    def subscribe(
+        self,
+        subscription_messages: List[
+            Union[MarketSubscriptionMessage, OrderSubscriptionMessage]
+        ],
+    ):
+        self.api_socket.send(
+            json.dumps(  # pylint: disable=I1101
+                {
+                    "op": "subscription",
+                    "subscription_messages": [
+                        s.to_dict() for s in subscription_messages
+                    ],
+                }
+            ).encode("utf-8")
+        )
 
-    def get_market_cache(self):
-        self.state_socket.send(b"GIVE ME STATE")
-        return self.state_socket.recv_pyobj()
-
-    def get_sub_socket(self):
-        self.sub_socket.connect("tcp://127.0.0.1:5557")
         return self.sub_socket
+
+    def unsubscribe(self):
+        self.api_socket.send(
+            json.dumps({"op": "unsubscribe"}).encode("utf-8")  # pylint: disable=I1101
+        )
+
+    def list_streams(self):
+        self.api_socket.send(orjson.dumps({"op": "list"}))
+
+        print(json.dumps(json.loads(self.api_socket.recv()), indent=4))
 
     @classmethod
     def create_betfair_api(cls):
         context = zmq.Context.instance()
-        client_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
-        client_socket.connect("tcp://127.0.0.1:5556")
 
-        state_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
-        state_socket.connect("tcp://127.0.0.1:5555")
+        api_socket = context.socket(zmq.PAIR)  # pylint: disable=no-member
+        api_socket.connect("tcp://127.0.0.1:5556")
 
         sub_socket = context.socket(zmq.SUB)  # pylint: disable=no-member
-        sub_socket.setsockopt(zmq.SUBSCRIBE, b"")  # pylint: disable=no-member
+        sub_socket.setsockopt(zmq.SUBSCRIBE, b"")
+        sub_socket.connect("tcp://127.0.0.1:5557")
 
-        return cls(
-            client_socket=client_socket,
-            state_socket=state_socket,
-            sub_socket=sub_socket,
-        )
+        return cls(api_socket=api_socket, sub_socket=sub_socket)
