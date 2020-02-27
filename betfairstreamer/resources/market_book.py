@@ -6,8 +6,7 @@ from typing import Dict, List
 import attr
 import numpy as np
 
-from betfairstreamer.resources.api_messages import (MarketDefinition,
-                                                    RunnerDefinition)
+from betfairstreamer.resources.api_messages import MarketDefinition, RunnerDefinition
 from betfairstreamer.utils import parse_betfair_date
 
 
@@ -89,7 +88,9 @@ class MarketBook:
 
     @classmethod
     def from_betfair_dict(cls, betfair_dict):
-        assert "marketDefinition" in betfair_dict, "MarketDefinition must be present!"
+
+        if "marketDefinition" not in betfair_dict:
+            return None
 
         market_definition = MarketDefinition.from_betfair_dict(
             betfair_dict["marketDefinition"]

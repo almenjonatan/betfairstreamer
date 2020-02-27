@@ -9,10 +9,6 @@ from betfairlightweight import APIClient
 
 from betfairstreamer.utils import parse_betfair_date
 
-USERNAME: str = os.environ["USERNAME"]
-PASSWORD: str = os.environ["PASSWORD"]
-APP_KEY: str = os.environ["APP_KEY"]
-
 
 class PersistenceType(Enum):
     L = "LAPSE"
@@ -128,10 +124,18 @@ class OrderCache:
     latest_order = attr.ib(type=Dict[Tuple[str, int, str], Order], factory=dict)
 
     def update(self, stream_message):
+        updated_orders = []
+
         for m in stream_message.get("oc", []):
             for s in m.get("orc"):
                 for o in s.get("uo"):
-                    self.update_order(m["id"], s["id"], Order.from_betfair_stream(o))
+                    updated_orders.append(
+                        self.update_order(
+                            m["id"], s["id"], Order.from_betfair_stream(o)
+                        )
+                    )
+
+        return updated_orders
 
     def update_order(self, market_id: str, selection_id: int, order: Order):
 
@@ -159,6 +163,8 @@ class OrderCache:
             self.size_remaining[key] += order.size_remaining
 
         self.orders[order.bet_id] = order
+
+        return order
 
     def get_latest_order(self, market_id, selection_id, side) -> Optional[Order]:
         return self.latest_order.get((market_id, selection_id, side))
@@ -215,8 +221,13 @@ class OrderCache:
         if stream_update.get("op", "") == "ocm":
             return self.update(stream_update)
 
+        return []
+
     @classmethod
     def from_betfair_api(cls):
+        USERNAME: str = os.environ["USERNAME"]
+        PASSWORD: str = os.environ["PASSWORD"]
+        APP_KEY: str = os.environ["APP_KEY"]
 
         trading: APIClient = betfairlightweight.APIClient(
             username=USERNAME, password=PASSWORD, app_key=APP_KEY, locale="sweden"
@@ -226,10 +237,10 @@ class OrderCache:
 
         current_orders = trading.betting.list_current_orders(lightweight=False)
 
-        mc = cls()
+        oc = cls()
         for o in current_orders.orders:
 
-            mc.update_order(
+            oc.update_order(
                 o.market_id,
                 o.selection_id,
                 Order(
@@ -258,4 +269,4 @@ class OrderCache:
                 ),
             )
 
-        return mc
+        return oc

@@ -27,7 +27,8 @@ class MarketCache:
             else:
                 market_book = MarketBook.from_betfair_dict(market_update)
 
-                assert market_book is not None
+                if market_book is None:
+                    continue
 
                 self.market_books[market_book.market_id] = market_book
                 updated_market_books.append(market_book)
