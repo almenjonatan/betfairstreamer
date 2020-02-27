@@ -194,6 +194,9 @@ class ConnectionHandler:
             v.socket.shutdown(socket.SHUT_RDWR)
             v.socket.close()
 
+        self.connection_messages = []
+        self.connections = {}
+
     def get_connection(self, fd: int):
         return self.connections[fd]
 
