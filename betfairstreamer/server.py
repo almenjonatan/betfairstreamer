@@ -270,5 +270,5 @@ class APIServer:
         ).start()
 
 
-if __name__ == "__main__":
+def start():
     api_server = APIServer.create_api_server()

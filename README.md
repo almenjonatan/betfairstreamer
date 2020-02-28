@@ -12,12 +12,12 @@ from betfairstreamer.resources.api_messages import (
 )
 
 # Create and  authenticate a connection to Betfair
-connection = BetfairConnection.create_connection("market_stream")
+connection = BetfairConnection.create_connection()
 
 market_filter = MarketFilter(event_type_ids=[7], country_codes=["GB"])
 
 market_data_filter = MarketDataFilter(
-    fields=[Field.EX_MARKET_DEF, Field.EX_BEST_OFFERS_DISP, Field.EX_MARKET_DEF]
+    fields=[Field.EX_MARKET_DEF, Field.EX_BEST_OFFERS_DISP]
 )
 
 market_subscription = MarketSubscriptionMessage(

@@ -1,0 +1,16 @@
+betfairlightweight
+orjson
+numpy
+pyzmq
+ciso8601
+attrs
+mypy
+black
+pytest
+hypothesis
+pytest-mypy
+pytest-cov
+pytest-watch
+pylint
+isort
+tox

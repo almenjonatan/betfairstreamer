@@ -2,18 +2,12 @@ FROM python:3.8.1
 
 WORKDIR /app
 
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-
-ENV PATH="${PATH}:/root/.poetry/bin"
-RUN poetry config virtualenvs.create false
-
-COPY pyproject.toml pyproject.toml
-COPY poetry.lock poetry.lock
-
-RUN poetry update
-
+COPY setup.py setup.py
+COPY README.md README.md
 COPY betfairstreamer betfairstreamer
 
-ENV PYTHONPATH /app
+RUN  python setup.py sdist bdist_wheel
 
-CMD ["python", "betfairstreamer/server.py"]
+RUN pip install /app/dist/betfairstreamer-0.2.2.tar.gz
+
+CMD ["betfairstreamer"]

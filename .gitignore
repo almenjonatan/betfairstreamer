@@ -1,3 +1,12 @@
+.DS_Store
+.devcontainer/
+.tox/
+credentials.env
+main.py
+pip-wheel-metadata/
+run.sh
+
+.venv
 .vscode
 certs
 *.pyc
