@@ -28,13 +28,6 @@ poller = zmq.Poller()
 logging.basicConfig(level=logging.INFO)
 
 
-USERNAME: str = os.environ["USERNAME"]
-PASSWORD: str = os.environ["PASSWORD"]
-APP_KEY: str = os.environ["APP_KEY"]
-
-trading: APIClient = APIClient(USERNAME, PASSWORD, APP_KEY, locale="sweden")
-
-
 @attr.s
 class BetfairConnection:
     """
@@ -63,7 +56,7 @@ class BetfairConnection:
         betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
 
-        betfair_ssl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size)
+        # betfair_ssl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size)
         betfair_ssl_socket.connect((self.hostname, self.port))
 
         self.socket = betfair_ssl_socket
@@ -143,9 +136,16 @@ def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
 
     Returns: BetfairConnection, authneticated with Betfair.
     """
+    USERNAME: str = os.environ["USERNAME"]
+    PASSWORD: str = os.environ["PASSWORD"]
+    APP_KEY: str = os.environ["APP_KEY"]
+    CERT_PATH: str = os.environ["CERT_PATH"]
 
-    if trading.session_expired:
-        trading.login()
+    trading: APIClient = APIClient(
+        USERNAME, PASSWORD, APP_KEY, locale="sweden", certs=CERT_PATH
+    )
+
+    trading.login()
 
     auth_message = AuthenticationMessage(
         id=1, session=trading.session_token, app_key=trading.app_key,
