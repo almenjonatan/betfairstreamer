@@ -1,6 +1,10 @@
 import ciso8601
-import datetime
+
+from datetime import date
 from datetime import timezone
+from datetime import datetime
+
+import pytz
 
 
 def parse_betfair_date(betfair_date: str):
@@ -12,6 +16,14 @@ def parse_betfair_date(betfair_date: str):
 
 def parse_utc_timestamp(timestamp: int):
     try:
-        return datetime.datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    except Exception:
+        return datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
+    except Exception as e:
+        print(e)
+        return
+
+
+def localize_betfair(betfair_datetime: datetime):
+    try:
+        return pytz.utc.localize(betfair_datetime)
+    except Exception as e:
         return

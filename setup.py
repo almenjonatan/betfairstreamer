@@ -20,6 +20,7 @@ setuptools.setup(
         "pyzmq",
         "ciso8601",
         "attrs",
+        "pytz",
     ],
     entry_points={
         "console_scripts": ["betfairstreamer = betfairstreamer.server:start",],

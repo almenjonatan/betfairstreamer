@@ -7,7 +7,11 @@ import attr
 import betfairlightweight
 from betfairlightweight import APIClient
 
-from betfairstreamer.utils import parse_betfair_date, parse_utc_timestamp
+from betfairstreamer.utils import (
+    localize_betfair,
+    parse_betfair_date,
+    parse_utc_timestamp,
+)
 import datetime
 
 
@@ -133,7 +137,7 @@ class OrderCache:
 
         for m in stream_message.get("oc", []):
             for s in m.get("orc"):
-                for o in s.get("uo"):
+                for o in s.get("uo", []):
                     updated_orders.append(
                         self.update_order(
                             Order.from_betfair_stream(m["id"], s["id"], o)
@@ -270,8 +274,8 @@ class OrderCache:
                     status=Status[o.status],
                     persistence_type=PersistenceType[o.persistence_type],
                     order_type=OrderType[o.order_type],
-                    placed_date=o.placed_date,
-                    matched_date=o.matched_date,
+                    placed_date=localize_betfair(o.placed_date),
+                    matched_date=localize_betfair(o.matched_date),
                     average_price_matched=o.average_price_matched,
                     size_matched=o.size_matched,
                     size_remaining=o.size_remaining,
