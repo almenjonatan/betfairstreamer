@@ -44,10 +44,11 @@ class Status(Enum):
 
 @attr.s(slots=True, weakref_slot=False)
 class Order:
-    order_reference = attr.ib(type=float)
+    market_id = attr.ib(type=str)
+    selection_id = attr.ib(type=int)
     bet_id = attr.ib(type=str)
     bsp = attr.ib(type=float)
-    strategy_reference = attr.ib(type=str)
+    customer_strategy_reference = attr.ib(type=str)
     status = attr.ib(type=Status)
     side = attr.ib(type=Side)
     persistence_type = attr.ib(type=PersistenceType)
@@ -66,10 +67,13 @@ class Order:
     average_price_matched = attr.ib(type=float, default=0)
     size_matched = attr.ib(type=float, default=0)
     size_remaining = attr.ib(type=float, default=0)
+    customer_order_reference = attr.ib(type=str, default=None)
 
     @classmethod
-    def from_betfair_stream(cls, stream_message):
+    def from_betfair_stream(cls, market_id: str, selection_id: int, stream_message):
         return cls(
+            market_id=market_id,
+            selection_id=selection_id,
             side=Side[stream_message.get("side")],
             size_voided=stream_message.get("sv"),
             persistence_type=PersistenceType[stream_message.get("pt")],
@@ -86,10 +90,10 @@ class Order:
             size_lapsed=stream_message.get("size_lapsed"),
             average_price_matched=stream_message.get("avp"),
             size_matched=stream_message.get("sm"),
-            order_reference=stream_message.get("rfo"),
             bet_id=stream_message.get("id"),
             bsp=stream_message.get("bsp"),
-            strategy_reference=stream_message.get("rfs"),
+            customer_strategy_reference=stream_message.get("rfs"),
+            customer_order_reference=stream_message.get("rfo", None),
             status=Status[stream_message.get("status")],
             size_remaining=stream_message.get("sr"),
         )
@@ -131,17 +135,17 @@ class OrderCache:
                 for o in s.get("uo"):
                     updated_orders.append(
                         self.update_order(
-                            m["id"], s["id"], Order.from_betfair_stream(o)
+                            Order.from_betfair_stream(m["id"], s["id"], o)
                         )
                     )
 
         return updated_orders
 
-    def update_order(self, market_id: str, selection_id: int, order: Order):
+    def update_order(self, order: Order):
 
         cached_order: Optional[Order] = self.orders.get(order.bet_id)
 
-        key = (market_id, selection_id, order.side)
+        key = (order.market_id, order.selection_id, order.side)
 
         if cached_order:
             self.size_matched[key] += order.size_matched - cached_order.size_matched
@@ -228,9 +232,14 @@ class OrderCache:
         USERNAME: str = os.environ["USERNAME"]
         PASSWORD: str = os.environ["PASSWORD"]
         APP_KEY: str = os.environ["APP_KEY"]
+        CERT_PATH: str = os.environ["CERT_PATH"]
 
         trading: APIClient = betfairlightweight.APIClient(
-            username=USERNAME, password=PASSWORD, app_key=APP_KEY, locale="sweden"
+            username=USERNAME,
+            password=PASSWORD,
+            app_key=APP_KEY,
+            certs=CERT_PATH,
+            locale="sweden",
         )
 
         trading.login()
@@ -239,11 +248,10 @@ class OrderCache:
 
         oc = cls()
         for o in current_orders.orders:
-
             oc.update_order(
-                o.market_id,
-                o.selection_id,
                 Order(
+                    market_id=o.market_id,
+                    selection_id=o.selection_id,
                     bet_id=o.bet_id,
                     price=o.price_size.price,
                     size=o.price_size.size,
@@ -262,8 +270,8 @@ class OrderCache:
                     size_voided=o.size_voided,
                     regulator_code=o.regulator_code,
                     regulator_auth_code=o.regulator_code,
-                    order_reference=o.customer_order_ref,
-                    strategy_reference=o.customer_strategy_ref,
+                    customer_order_reference=o.customer_order_ref,
+                    customer_strategy_reference=o.customer_strategy_ref,
                     lapse_status_reason_code=None,
                     lapsed_date=None,
                 ),

@@ -36,6 +36,6 @@ docker run \
 	   -e PASSWORD=$PASSWORD \
 	   -e APP_KEY=$APP_KEY \
 	   -e CERT_PATH=/certs \
-       -v $(pwd)/certs:/certs \
+           -v $(pwd)/certs:/certs \
 	   --name betfairstreamer \
 	   $CONTAINER_NAME:$TAG_NAME
