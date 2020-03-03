@@ -216,8 +216,8 @@ class OrderCache:
         )
 
     def get_matched_balanced(self, market_id, selection_id):
-        back_bets = self.get_size_matched(market_id, selection_id, "BACK")
-        lay_bets = self.get_size_matched(market_id, selection_id, "LAY")
+        back_bets = self.get_size_matched(market_id, selection_id, Side.BACK)
+        lay_bets = self.get_size_matched(market_id, selection_id, Side.LAY)
 
         return round(back_bets - lay_bets)
 
