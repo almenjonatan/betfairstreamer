@@ -7,7 +7,8 @@ import attr
 import betfairlightweight
 from betfairlightweight import APIClient
 
-from betfairstreamer.utils import parse_betfair_date
+from betfairstreamer.utils import parse_betfair_date, parse_utc_timestamp
+import datetime
 
 
 class PersistenceType(Enum):
@@ -83,10 +84,10 @@ class Order:
             size_cancelled=stream_message.get("sc"),
             regulator_code=stream_message.get("rc"),
             size=stream_message.get("s"),
-            placed_date=parse_betfair_date(stream_message.get("pd")),
+            placed_date=parse_utc_timestamp(stream_message.get("pd")),
             regulator_auth_code=stream_message.get("rac"),
-            matched_date=parse_betfair_date(stream_message.get("md")),
-            lapsed_date=parse_betfair_date(stream_message.get("ld")),
+            matched_date=parse_utc_timestamp(stream_message.get("md")),
+            lapsed_date=parse_utc_timestamp(stream_message.get("ld")),
             size_lapsed=stream_message.get("size_lapsed"),
             average_price_matched=stream_message.get("avp"),
             size_matched=stream_message.get("sm"),
