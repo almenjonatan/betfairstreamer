@@ -125,7 +125,7 @@ class OrderCache:
         type=Dict[Tuple[str, int, Side], Dict[str, Order]], factory=default_d(dict)
     )
 
-    latest_order = attr.ib(type=Dict[Tuple[str, int, str], Order], factory=dict)
+    latest_order = attr.ib(type=Dict[Tuple[str, int, Side], Order], factory=dict)
 
     def update(self, stream_message):
         updated_orders = []
@@ -167,6 +167,15 @@ class OrderCache:
             self.size_remaining[key] += order.size_remaining
 
         self.orders[order.bet_id] = order
+
+        latest_order = self.get_latest_order(
+            order.market_id, order.selection_id, order.side
+        )
+
+        if latest_order is None:
+            self.latest_order[(order.market_id, order.selection_id, order.side)] = order
+        elif order.placed_date >= latest_order.placed_date:
+            self.latest_order[(order.market_id, order.selection_id, order.side)] = order
 
         return order
 
