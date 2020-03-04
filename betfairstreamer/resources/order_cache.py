@@ -136,7 +136,7 @@ class OrderCache:
         updated_orders = []
 
         for m in stream_message.get("oc", []):
-            for s in m.get("orc"):
+            for s in m.get("orc", []):
                 for o in s.get("uo", []):
                     updated_orders.append(
                         self.update_order(
