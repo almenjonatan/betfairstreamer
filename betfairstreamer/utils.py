@@ -18,7 +18,6 @@ def parse_utc_timestamp(timestamp: int):
     try:
         return datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
     except Exception as e:
-        print(e)
         return
 
 

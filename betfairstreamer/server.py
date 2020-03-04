@@ -6,7 +6,7 @@ import os
 import socket
 import ssl
 import threading
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import attr
 import orjson
@@ -14,6 +14,8 @@ import zmq
 from betfairlightweight import APIClient
 
 from betfairstreamer.resources.api_messages import (
+    MarketSubscriptionMessage,
+    OrderSubscriptionMessage,
     AuthenticationMessage,
     ConnectionMessage,
     StatusCode,
@@ -21,11 +23,31 @@ from betfairstreamer.resources.api_messages import (
 )
 from betfairstreamer.resources.market_cache import MarketCache
 import time
-
-context = zmq.Context()
-poller = zmq.Poller()
+import select
 
 logging.basicConfig(level=logging.INFO)
+
+
+def create_socket(hostname: str, port: int, cert_path: str) -> socket.socket:
+    """Create a SSLSocket, connects to betfair"""
+
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, capath=cert_path)
+
+    betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
+
+    # betfair_ssl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size)
+    betfair_ssl_socket.connect((hostname, port))
+
+    return betfair_ssl_socket
+
+
+def decode_message(msg: bytes) -> Dict:
+    return orjson.loads(msg)
+
+
+def encode_message(msg: Dict) -> bytes:
+    return json.dumps(msg).encode("utf-8") + b"\r\n"
 
 
 @attr.s
@@ -35,54 +57,17 @@ class BetfairConnection:
     sending messages to betfair exchange stream API.
     """
 
-    id = attr.ib(type=int, default=1)
-    cert_path = attr.ib(type=str, default=os.environ["CERT_PATH"])
-    hostname = attr.ib(type=str, default="stream-api.betfair.com")
-    port = attr.ib(type=int, default=443)
-    socket = attr.ib(default=None)
+    socket = attr.ib()
     crlf = attr.ib(type=bytes, default=b"\r\n")
-    connection_id = attr.ib(type=str, default=None)
     buffer = attr.ib(type=bytes, default=b"")
-
-    def connect(self, buffer_size=33554432):
-        """
-        Create a SSLSocket, connects to betfair
-        """
-
-        ssl_context = ssl.create_default_context(
-            ssl.Purpose.CLIENT_AUTH, capath=self.cert_path
-        )
-
-        betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
-
-        # betfair_ssl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size)
-        betfair_ssl_socket.connect((self.hostname, self.port))
-
-        self.socket = betfair_ssl_socket
-
-        byte_message = self.recieve()
-        json_message = orjson.loads(byte_message[0])  # pylint: disable=I1101
-
-        connection_message = ConnectionMessage.from_stream_message(json_message)
-        self.connection_id = connection_message.connection_id
-
-        logging.info(connection_message)
+    read_buffer_size = attr.ib(type=int, default=4096)
 
     def close(self) -> None:
         self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
-    def send(self, msg):
-        if not isinstance(msg, dict):
-            msg = msg.to_dict()
-
-        msg["id"] = self.id
-        self.id += 1
-
-        byte_msg = json.dumps(msg).encode("utf-8") + self.crlf
-
-        self.socket.send(byte_msg)
+    def send(self, msg: Dict):
+        self.socket.send(encode_message(msg))
 
     def recieve(self) -> List[bytes]:
         """
@@ -95,38 +80,81 @@ class BetfairConnection:
         Returns: list of ResponseMessages byte encoded.
         """
 
-        part = self.socket.recv(4096)
+        # Should only timeout if not using a poller
+        try:
+            part = self.socket.recv(self.read_buffer_size)
+        except socket.timeout:
+            raise
 
         if part == b"":
-            raise ConnectionError()
+            raise ConnectionError("Socket closed!")
 
-        before, sep, after = part.partition(self.crlf)
+        self.buffer = self.buffer + part
+
+        before, sep, after = self.buffer.partition(self.crlf)
 
         messages = []
 
         while sep == self.crlf:
-            self.buffer += before
-            messages.append(self.buffer)
 
-            self.buffer = b""
+            messages.append(before)
 
             before, sep, after = after.partition(self.crlf)
 
-        self.buffer += before
+        self.buffer = before
 
         return messages
 
     @classmethod
-    def create_connection(cls):
-        """Create BetfairConnection instance, connect it to betfair, needs to be authenticated to be able to send,
-        subscription messages and receive stream updates.
-
-        Returns: BetfairConnection (socket connected to Betfair)
-        """
-
-        connection = cls()
-        connection.connect()
+    def create_betfair_connection(cls):
+        socket = create_socket("stream-api.betfair.com", 443, "./certs")
+        connection = cls(socket)
         return authenticate_connection(connection)
+
+
+@attr.s
+class ConnectionHandler:
+    poller = attr.ib(factory=select.poll)
+
+    connections = attr.ib(type=Dict[int, BetfairConnection], factory=dict)
+    message_handler = attr.ib(default=lambda m: print(m))
+
+    def subscribe(
+        self,
+        subscription_messages: List[
+            Union[MarketSubscriptionMessage, OrderSubscriptionMessage]
+        ],
+    ):
+
+        for subscription_message in subscription_messages:
+
+            connection = BetfairConnection.create_betfair_connection()
+            connection.send(subscription_message.to_dict())
+
+            logging.info(
+                StatusMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
+            )
+
+            self.add_connection(connection)
+
+    def add_connection(self, connection: BetfairConnection) -> None:
+        self.poller.register(connection.socket, select.POLLIN)
+        self.connections[connection.socket.fileno()] = connection
+
+    def read(self):
+
+        for fd, event in self.poller.poll():
+            for m in self.connections[fd].recieve():
+                self.message_handler(m)
+
+    def close_all_connections(self):
+
+        for k, v in self.connections.items():
+            v.socket.shutdown(socket.SHUT_RDWR)
+            v.socket.close()
+
+        self.connection_messages = []
+        self.connections = {}
 
 
 def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
@@ -155,120 +183,12 @@ def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
 
     connection.send(auth_message.to_dict())
 
-    status_msg = orjson.loads(connection.recieve()[0])  # pylint: disable=I1101
-    status_msg = StatusMessage.from_stream_message(status_msg)
+    logging.info(
+        ConnectionMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
+    )
 
-    logging.info(status_msg)
+    logging.info(
+        StatusMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
+    )
 
     return connection
-
-
-@attr.s
-class ConnectionHandler:
-    connections = attr.ib(type=Dict[int, BetfairConnection], factory=dict)
-
-    poller = attr.ib(type=zmq.Poller, factory=zmq.Poller)
-
-    connection_messages = attr.ib(type=List[Dict], factory=list)
-
-    def create_connections(self, subscription_messages: Dict):
-        self.connection_messages = []
-
-        for subscription_message in subscription_messages:
-            self.connection_messages.append(subscription_message)
-
-            connection = BetfairConnection.create_connection()
-            connection.send(subscription_message)
-
-            logging.info(
-                StatusMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
-            )
-
-            self.connections[connection.socket.fileno()] = connection
-            self.poller.register(connection.socket, zmq.POLLIN)
-
-    def close_all_connections(self):
-
-        for k, v in self.connections.items():
-            self.poller.unregister(v.socket)
-            v.socket.shutdown(socket.SHUT_RDWR)
-            v.socket.close()
-
-        self.connection_messages = []
-        self.connections = {}
-
-    def get_connection(self, fd: int):
-        return self.connections[fd]
-
-
-@attr.s
-class APIServer:
-
-    pub_socket = attr.ib(type=zmq.Socket, default=None)
-    api_socket = attr.ib(type=zmq.Socket, default=None)
-
-    read_loop_thread = attr.ib(type=threading.Thread, default=None)
-
-    connection_handler = attr.ib(type=ConnectionHandler, factory=ConnectionHandler)
-
-    running = attr.ib(type=bool, default=False)
-
-    def read_loop(self):
-        while self.running:
-            for fd, _ in self.connection_handler.poller.poll():
-                for m in self.connection_handler.get_connection(fd).recieve():
-                    self.pub_socket.send(m)
-
-        self.connection_handler.close_all_connections()
-
-    def start(self):
-        logging.info("WAITING FOR SUBSCRIPTIONS")
-        while True:
-            msg = orjson.loads(self.api_socket.recv())
-
-            if msg["op"] == "subscription":
-                self.start_everything(msg)
-
-            if msg["op"] == "unsubscribe":
-                self.close_everything()
-
-            if msg["op"] == "list":
-                self.api_socket.send(
-                    orjson.dumps(self.connection_handler.connection_messages)
-                )
-
-    def start_everything(self, msg):
-        if self.running:
-            self.close_everything()
-
-        self.running = True
-        self.connection_handler.create_connections(msg["subscription_messages"])
-        self.read_loop_thread = threading.Thread(target=self.read_loop)
-        self.read_loop_thread.start()
-
-    def close_everything(self):
-        logging.info("STOPPING ALL STREAMS ...")
-
-        if self.running:
-            self.running = False
-            self.read_loop_thread.join()
-
-            logging.info("SUCCESSFULLY CLOSED ALL STREAMS! ")
-
-    @classmethod
-    def create_api_server(cls):
-        context = zmq.Context.instance()
-
-        api_socket = context.socket(zmq.PAIR)
-        api_socket.bind("tcp://*:5556")
-
-        pub_socket = context.socket(zmq.PUB)
-        pub_socket.bind("tcp://*:5557")
-
-        threading.Thread(
-            target=cls(api_socket=api_socket, pub_socket=pub_socket).start
-        ).start()
-
-
-def start():
-    api_server = APIServer.create_api_server()
