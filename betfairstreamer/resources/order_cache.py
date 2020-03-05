@@ -1,6 +1,7 @@
+import datetime
 import os
 from collections import defaultdict
-from enum import Enum, auto
+from enum import Enum
 from typing import Dict, Optional, Tuple
 
 import attr
@@ -8,11 +9,9 @@ import betfairlightweight
 from betfairlightweight import APIClient
 
 from betfairstreamer.utils import (
-    localize_betfair,
     parse_betfair_date,
     parse_utc_timestamp,
 )
-import datetime
 
 
 class PersistenceType(Enum):
@@ -49,29 +48,30 @@ class Status(Enum):
 
 @attr.s(slots=True, weakref_slot=False)
 class Order:
-    market_id = attr.ib(type=str)
-    selection_id = attr.ib(type=int)
-    bet_id = attr.ib(type=str)
-    bsp = attr.ib(type=float)
-    customer_strategy_reference = attr.ib(type=str)
+    market_id = attr.ib()
+    selection_id = attr.ib()
+    bet_id = attr.ib()
+    bsp = attr.ib()
     status = attr.ib(type=Status)
     side = attr.ib(type=Side)
     persistence_type = attr.ib(type=PersistenceType)
     order_type = attr.ib(type=OrderType)
-    price = attr.ib(type=float)
-    lapse_status_reason_code = attr.ib(type=str)
-    regulator_code = attr.ib(type=float)
-    size = attr.ib(type=float)
-    placed_date = attr.ib(type=int)
-    regulator_auth_code = attr.ib(type=str)
-    matched_date = attr.ib(type=int)
-    lapsed_date = attr.ib(type=int)
+    price = attr.ib()
+    regulator_code = attr.ib()
+    size = attr.ib()
+    placed_date = attr.ib(type=Optional[datetime.datetime])
+    matched_date = attr.ib()
+    lapsed_date = attr.ib(type=datetime.datetime, default=None)
+    regulator_auth_code = attr.ib(type=str, default="")
+    lapse_status_reason_code = attr.ib(type=str, default="")
+    handicap = attr.ib(type=Optional[float], default=0)
     size_cancelled = attr.ib(type=float, default=0)
     size_voided = attr.ib(type=float, default=0)
     size_lapsed = attr.ib(type=float, default=0)
     average_price_matched = attr.ib(type=float, default=0)
     size_matched = attr.ib(type=float, default=0)
     size_remaining = attr.ib(type=float, default=0)
+    customer_strategy_reference = attr.ib(type=str, default="")
     customer_order_reference = attr.ib(type=str, default=None)
 
     @classmethod
@@ -95,12 +95,38 @@ class Order:
             size_lapsed=stream_message.get("size_lapsed"),
             average_price_matched=stream_message.get("avp"),
             size_matched=stream_message.get("sm"),
-            bet_id=stream_message.get("id"),
+            bet_id=int(stream_message.get("id")),
             bsp=stream_message.get("bsp"),
             customer_strategy_reference=stream_message.get("rfs"),
             customer_order_reference=stream_message.get("rfo", None),
             status=Status[stream_message.get("status")],
             size_remaining=stream_message.get("sr"),
+        )
+
+    @classmethod
+    def from_betfair_rest_api(cls, order: Dict):
+        return cls(
+            bet_id=order.get("betId"),
+            market_id=order.get("marketId"),
+            selection_id=order.get("selectionId"),
+            handicap=order.get("handicap"),
+            price=order.get("priceSize", {})["price"],
+            size=order.get("priceSize", {})["size"],
+            side=Side[order.get("side", "")],
+            status=Status[order.get("status", "")],
+            persistence_type=PersistenceType[order.get("persistenceType", "")],
+            order_type=OrderType[order.get("orderType", "")],
+            bsp=order.get("bspLiability"),
+            placed_date=parse_betfair_date(order.get("placedDate")),
+            average_price_matched=order.get("averagePriceMatched", None),
+            size_matched=order.get("sizeMatched", 0),
+            size_remaining=order.get("sizeRemaining", 0),
+            size_lapsed=order.get("sizeLapesed", 0),
+            size_cancelled=order.get("sizeCancelled", 0),
+            regulator_code=order.get("regulatorCode"),
+            customer_order_reference=order.get("customerOrderRef", ""),
+            customer_strategy_reference=order.get("customerStrategyRef", ""),
+            matched_date=order.get("matchedDate", None),
         )
 
 
@@ -179,7 +205,11 @@ class OrderCache:
 
         if latest_order is None:
             self.latest_order[(order.market_id, order.selection_id, order.side)] = order
-        elif order.placed_date >= latest_order.placed_date:
+        elif (
+            order.placed_date is not None
+            and latest_order.placed_date is not None
+            and order.placed_date >= latest_order.placed_date
+        ):
             self.latest_order[(order.market_id, order.selection_id, order.side)] = order
 
         return order
@@ -242,53 +272,23 @@ class OrderCache:
         return []
 
     @classmethod
-    def from_betfair_api(cls):
-        USERNAME: str = os.environ["USERNAME"]
-        PASSWORD: str = os.environ["PASSWORD"]
-        APP_KEY: str = os.environ["APP_KEY"]
-        CERT_PATH: str = os.environ["CERT_PATH"]
+    def from_betfair(cls):
 
         trading: APIClient = betfairlightweight.APIClient(
-            username=USERNAME,
-            password=PASSWORD,
-            app_key=APP_KEY,
-            certs=CERT_PATH,
+            username=os.environ["USERNAME"],
+            password=os.environ["PASSWORD"],
+            app_key=os.environ["APP_KEY"],
+            certs=os.environ["CERT_PATH"],
             locale="sweden",
         )
 
         trading.login()
 
-        current_orders = trading.betting.list_current_orders(lightweight=False)
+        current_orders = trading.betting.list_current_orders(lightweight=True)
 
         oc = cls()
-        for o in current_orders.orders:
-            oc.update_order(
-                Order(
-                    market_id=o.market_id,
-                    selection_id=o.selection_id,
-                    bet_id=o.bet_id,
-                    price=o.price_size.price,
-                    size=o.price_size.size,
-                    bsp=o.bsp_liability,
-                    side=Side[o.side],
-                    status=Status[o.status],
-                    persistence_type=PersistenceType[o.persistence_type],
-                    order_type=OrderType[o.order_type],
-                    placed_date=localize_betfair(o.placed_date),
-                    matched_date=localize_betfair(o.matched_date),
-                    average_price_matched=o.average_price_matched,
-                    size_matched=o.size_matched,
-                    size_remaining=o.size_remaining,
-                    size_lapsed=o.size_lapsed,
-                    size_cancelled=o.size_cancelled,
-                    size_voided=o.size_voided,
-                    regulator_code=o.regulator_code,
-                    regulator_auth_code=o.regulator_code,
-                    customer_order_reference=o.customer_order_ref,
-                    customer_strategy_reference=o.customer_strategy_ref,
-                    lapse_status_reason_code=None,
-                    lapsed_date=None,
-                ),
-            )
+
+        for o in current_orders["currentOrders"]:
+            oc.update_order(Order.from_betfair_rest_api(o))
 
         return oc

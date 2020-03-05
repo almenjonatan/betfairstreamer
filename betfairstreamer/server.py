@@ -3,14 +3,13 @@
 import json
 import logging
 import os
+import select
 import socket
 import ssl
-import threading
 from typing import Dict, List, Union
 
 import attr
 import orjson
-import zmq
 from betfairlightweight import APIClient
 
 from betfairstreamer.resources.api_messages import (
@@ -18,12 +17,8 @@ from betfairstreamer.resources.api_messages import (
     OrderSubscriptionMessage,
     AuthenticationMessage,
     ConnectionMessage,
-    StatusCode,
     StatusMessage,
 )
-from betfairstreamer.resources.market_cache import MarketCache
-import time
-import select
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,7 +31,6 @@ def create_socket(hostname: str, port: int, cert_path: str) -> socket.socket:
     betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
 
-    # betfair_ssl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buffer_size)
     betfair_ssl_socket.connect((hostname, port))
 
     return betfair_ssl_socket
@@ -69,7 +63,7 @@ class BetfairConnection:
     def send(self, msg: Dict):
         self.socket.send(encode_message(msg))
 
-    def recieve(self) -> List[bytes]:
+    def receive(self) -> List[bytes]:
         """
         Called when there are bytes to be read from socket.
 
@@ -107,13 +101,14 @@ class BetfairConnection:
 
     @classmethod
     def create_betfair_connection(cls):
-        socket = create_socket("stream-api.betfair.com", 443, "./certs")
-        connection = cls(socket)
+        s = create_socket("stream-api.betfair.com", 443, "./certs")
+        connection = cls(s)
         return authenticate_connection(connection)
 
 
 @attr.s
 class ConnectionHandler:
+
     poller = attr.ib(factory=select.poll)
 
     connections = attr.ib(type=Dict[int, BetfairConnection], factory=dict)
@@ -121,40 +116,29 @@ class ConnectionHandler:
 
     def subscribe(
         self,
-        subscription_messages: List[
-            Union[MarketSubscriptionMessage, OrderSubscriptionMessage]
-        ],
-    ):
+        subscription_messages: List[Union[MarketSubscriptionMessage, OrderSubscriptionMessage]],
+    ) -> None:
 
         for subscription_message in subscription_messages:
 
             connection = BetfairConnection.create_betfair_connection()
             connection.send(subscription_message.to_dict())
 
-            logging.info(
-                StatusMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
-            )
+            logging.info(StatusMessage.from_stream_message(orjson.loads(connection.receive()[0])))
 
             self.add_connection(connection)
+
+        self.read_loop()
 
     def add_connection(self, connection: BetfairConnection) -> None:
         self.poller.register(connection.socket, select.POLLIN)
         self.connections[connection.socket.fileno()] = connection
 
-    def read(self):
-
-        for fd, event in self.poller.poll():
-            for m in self.connections[fd].recieve():
-                self.message_handler(m)
-
-    def close_all_connections(self):
-
-        for k, v in self.connections.items():
-            v.socket.shutdown(socket.SHUT_RDWR)
-            v.socket.close()
-
-        self.connection_messages = []
-        self.connections = {}
+    def read_loop(self) -> None:
+        while True:
+            for fd, event in self.poller.poll(1):
+                for m in self.connections[fd].receive():
+                    self.message_handler(m)
 
 
 def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
@@ -164,14 +148,13 @@ def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
 
     Returns: BetfairConnection, authneticated with Betfair.
     """
-    USERNAME: str = os.environ["USERNAME"]
-    PASSWORD: str = os.environ["PASSWORD"]
-    APP_KEY: str = os.environ["APP_KEY"]
-    CERT_PATH: str = os.environ["CERT_PATH"]
 
-    trading: APIClient = APIClient(
-        USERNAME, PASSWORD, APP_KEY, locale="sweden", certs=CERT_PATH
-    )
+    username: str = os.environ["USERNAME"]
+    password: str = os.environ["PASSWORD"]
+    app_key: str = os.environ["APP_KEY"]
+    cert_path: str = os.environ["CERT_PATH"]
+
+    trading: APIClient = APIClient(username, password, app_key, locale="sweden", certs=cert_path)
 
     trading.login()
 
@@ -183,12 +166,8 @@ def authenticate_connection(connection: BetfairConnection) -> BetfairConnection:
 
     connection.send(auth_message.to_dict())
 
-    logging.info(
-        ConnectionMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
-    )
+    logging.info(ConnectionMessage.from_stream_message(orjson.loads(connection.receive()[0])))
 
-    logging.info(
-        StatusMessage.from_stream_message(orjson.loads(connection.recieve()[0]))
-    )
+    logging.info(StatusMessage.from_stream_message(orjson.loads(connection.receive()[0])))
 
     return connection

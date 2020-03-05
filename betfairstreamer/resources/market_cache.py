@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 import attr
-import orjson
 
 from betfairstreamer.resources.market_book import MarketBook
 
@@ -28,7 +27,7 @@ class MarketCache:
                 market_book = MarketBook.from_betfair_dict(market_update)
 
                 if market_book is None:
-                    continue
+                    raise ValueError("MarketBook should not be None!")
 
                 self.market_books[market_book.market_id] = market_book
                 updated_market_books.append(market_book)

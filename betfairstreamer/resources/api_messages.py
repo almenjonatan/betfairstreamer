@@ -1,7 +1,6 @@
-import json
 from datetime import datetime
-from enum import Enum, auto
-from typing import Dict, List
+from enum import Enum
+from typing import Dict, List, Optional
 
 import attr
 from attr import asdict
@@ -291,15 +290,15 @@ class MarketDefinition:
     turn_in_play_enabled = attr.ib(type=bool)
     price_ladder_definition = attr.ib(type=PriceLadderDefinition)
     keyline_definition = attr.ib(type=KeyLineDefinition)
-    suspend_time = attr.ib(type=datetime)
+    suspend_time = attr.ib(type=Optional[datetime])
     discount_allowed = attr.ib(type=bool)
     persistence_enabled = attr.ib(type=bool)
     runners = attr.ib(type=List[RunnerDefinition])
     version = attr.ib(type=int)
     event_type_id = attr.ib(type=int)
     complete = attr.ib(type=bool)
-    open_date = attr.ib(type=datetime)
-    market_time = attr.ib(type=datetime)
+    open_date = attr.ib(type=Optional[datetime])
+    market_time = attr.ib(type=Optional[datetime])
     bsp_reconciled = attr.ib(type=bool)
     line_interval = attr.ib(type=float)
     status = attr.ib(type=Status)
@@ -327,14 +326,14 @@ class MarketDefinition:
             event_id=betfair_dict.get("eventId", None),
             cross_matching=betfair_dict.get("crossMatching", None),
             runner_voidable=betfair_dict.get("runnerVoidAble", None),
-            turn_in_play_enabled=betfair_dict["turnInPlayEnabled"],
+            turn_in_play_enabled=betfair_dict.get("turnInPlayEnabled", None),
             price_ladder_definition=PriceLadderDefinition.from_betfair_dict(
                 betfair_dict.get("priceLadderDefinition", {})
             ),
             keyline_definition=KeyLineDefinition.from_betfair_dict(
                 betfair_dict.get("keylineDefinition", {})
             ),
-            suspend_time=parse_betfair_date(betfair_dict.get("suspend_time", "")),
+            suspend_time=parse_betfair_date(betfair_dict.get("suspend_time", None)),
             discount_allowed=betfair_dict.get("discount_allowed", None),
             persistence_enabled=betfair_dict.get("persistenceEnabled", None),
             runners=[
@@ -348,5 +347,5 @@ class MarketDefinition:
             market_time=parse_betfair_date(betfair_dict.get("marketTime", None)),
             bsp_reconciled=betfair_dict.get("bspReconciled", None),
             line_interval=betfair_dict.get("lineInterval", None),
-            status=Status[betfair_dict.get("status", None)],
+            status=Status[betfair_dict.get("status", "CLOSED")],
         )

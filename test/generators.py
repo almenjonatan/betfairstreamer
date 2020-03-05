@@ -1,6 +1,5 @@
 import hypothesis.strategies as st
 from hypothesis.strategies import composite
-import numpy as np
 
 
 @composite

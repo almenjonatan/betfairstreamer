@@ -29,6 +29,6 @@ c.send(market_subscription)
 
 # Start reading messages from the stream.
 while True:
-    for stream_update in c.recieve():
+    for stream_update in c.receive():
         print(m)
 ```
