@@ -95,7 +95,7 @@ class Order:
             size_lapsed=stream_message.get("size_lapsed"),
             average_price_matched=stream_message.get("avp"),
             size_matched=stream_message.get("sm"),
-            bet_id=int(stream_message.get("id")),
+            bet_id=stream_message.get("id"),
             bsp=stream_message.get("bsp"),
             customer_strategy_reference=stream_message.get("rfs"),
             customer_order_reference=stream_message.get("rfo", None),
@@ -140,6 +140,7 @@ def default_d(t):
 @attr.s(slots=True, weakref_slot=False)
 class OrderCache:
     orders = attr.ib(type=Dict[str, Order], factory=dict)
+
     size_matched = attr.ib(
         type=Dict[Tuple[str, int, Side], float], factory=default_d(float)
     )
@@ -272,20 +273,7 @@ class OrderCache:
         return []
 
     @classmethod
-    def from_betfair(cls):
-
-        trading: APIClient = betfairlightweight.APIClient(
-            username=os.environ["USERNAME"],
-            password=os.environ["PASSWORD"],
-            app_key=os.environ["APP_KEY"],
-            certs=os.environ["CERT_PATH"],
-            locale="sweden",
-        )
-
-        trading.login()
-
-        current_orders = trading.betting.list_current_orders(lightweight=True)
-
+    def from_betfair(cls, current_orders: Dict):
         oc = cls()
 
         for o in current_orders["currentOrders"]:

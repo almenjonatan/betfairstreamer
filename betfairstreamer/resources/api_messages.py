@@ -266,7 +266,6 @@ class RunnerDefinition:
 
 @attr.s(slots=True, weakref_slot=False)
 class MarketDefinition:
-
     venue = attr.ib(type=str)
     race_type = attr.ib(type=str)
     settled_time = attr.ib(type=datetime)
