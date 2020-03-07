@@ -188,8 +188,8 @@ class OrderCache:
 
             self.size_voided[key] += order.size_voided - cached_order.size_voided
 
-            self.size_remaining[key] -= (
-                cached_order.size_remaining - order.size_remaining
+            self.size_remaining[key] += (
+                order.size_remaining - cached_order.size_remaining
             )
 
         else:
