@@ -1,6 +1,9 @@
 import orjson
+from betfairlightweight.resources import CurrentOrders
+from hypothesis import note, settings
 
-from betfairstreamer.resources.order_cache import OrderCache, Side, Order
+from betfairstreamer.betfair.enums import Side
+from betfairstreamer.cache.order_cache import OrderCache
 
 
 def test_insert_order():
@@ -354,6 +357,8 @@ def test_list_current_orders_insert():
         "moreAvailable": False,
     }
 
+    current_orders = CurrentOrders(**co)
+
     su = [
         b'{"op":"ocm","initialClk":"DeSC9JgCDuv5s5QCDsjci5YCDdndt5kCDbbTqZcC","clk":"AAAAAAAAAAAAAA==",'
         b'"conflateMs":0,"heartbeatMs":5000,"pt":1583578555932,"ct":"SUB_IMAGE","oc":[{"id":"1.169206538",'
@@ -374,13 +379,74 @@ def test_list_current_orders_insert():
         b'"sm":0,"sr":100,"sl":0,"sc":0,"sv":0,"rac":"","rc":"REG_SWE","rfo":"2","rfs":""}],"mb":[[3.2,100]]}]}]} '
     ]
 
-    order_cache = OrderCache.from_betfair(co)
-    print(order_cache.orders)
+    order_cache = OrderCache.from_betfair(current_orders)
+
     updates = order_cache.update(orjson.loads(su[0]))
 
     for o in updates:
-        print(o.bet_id)
         assert (
-            order_cache.get_size_remaining(o.market_id, o.selection_id, o.side)
-            == o.size_remaining
+            order_cache.get_size_remaining(o.market_id, o.selection_id, o.side) == o.size_remaining
         )
+
+
+def test_order_on_selection():
+    co = {
+        "currentOrders": [
+            {
+                "betId": "197366684443",
+                "marketId": "1.169206844",
+                "selectionId": 1221385,
+                "handicap": 0.0,
+                "priceSize": {"price": 6.0, "size": 50.0},
+                "bspLiability": 0.0,
+                "side": "BACK",
+                "status": "EXECUTABLE",
+                "persistenceType": "LAPSE",
+                "orderType": "LIMIT",
+                "placedDate": "2020-03-06T21:26:17.000Z",
+                "matchedDate": "2020-03-06T22:48:30.000Z",
+                "averagePriceMatched": 0.0,
+                "sizeMatched": 0.0,
+                "sizeRemaining": 50.0,
+                "sizeLapsed": 0.0,
+                "sizeCancelled": 0,
+                "sizeVoided": 0.0,
+                "regulatorCode": "SWEDISH GAMBLING AUTHORITY",
+                "customerOrderRef": "5",
+            },
+            {
+                "betId": "197372201089",
+                "marketId": "1.169206844",
+                "selectionId": 1221385,
+                "handicap": 0.0,
+                "priceSize": {"price": 7.0, "size": 60.0},
+                "bspLiability": 0.0,
+                "side": "BACK",
+                "status": "EXECUTABLE",
+                "persistenceType": "LAPSE",
+                "orderType": "LIMIT",
+                "placedDate": "2020-03-06T23:11:11.000Z",
+                "matchedDate": "2020-03-06T23:17:01.000Z",
+                "averagePriceMatched": 0.0,
+                "sizeMatched": 0.0,
+                "sizeRemaining": 60.0,
+                "sizeLapsed": 0.0,
+                "sizeCancelled": 0.0,
+                "sizeVoided": 0.0,
+                "regulatorCode": "SWEDISH GAMBLING AUTHORITY",
+                "customerOrderRef": "7",
+            },
+        ],
+        "moreAvailable": False,
+    }
+
+    order_cache = OrderCache.from_betfair(CurrentOrders(**co))
+
+    assert (
+        len(
+            order_cache.get_orders_on_selection(
+                market_id="1.169206844", selection_id=1221385, side=Side.BACK
+            )
+        )
+        == 2
+    )

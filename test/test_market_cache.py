@@ -1,60 +1,24 @@
-import pytest
+from hypothesis import given
 
-from betfairstreamer.resources.market_cache import MarketCache
-
-
-def test_market_definition_missing():
-    market_cache = MarketCache()
-
-    market_update = {"op": "mcm", "pt": 10, "mc": [{"id": "1.2"}]}
-
-    with pytest.raises(ValueError):
-        market_cache(market_update)
+from betfairstreamer.betfair.models import MarketDefinition
+from betfairstreamer.cache.market_cache import MarketCache
+from test.generators import market_definition, initial_market_change_message
 
 
-def test_market_definition_present():
-    market_update = {
-        "op": "mcm",
-        "pt": 10,
-        "mc": [
-            {
-                "id": "1.2",
-                "marketDefinition": {
-                    "bettingType": "ODDS",
-                    "numberOfActiveRunners": 2,
-                    "runners": [{"id": 1, "sortPriority": 1}],
-                },
-            }
-        ],
-    }
+@given(market_definition())
+def test_insert_market_definition(md):
+    mdf = MarketDefinition.from_betfair(md)
 
-    market_cache = MarketCache()
-    market_books = market_cache(market_update)
-
-    assert len(market_books) == 1
-    assert market_books[0].market_definition.runners[0].sort_priority == 1
-    assert market_books[0].market_definition.runners[0].id == 1
+    assert md["bspMarket"] == mdf.bsp_market
+    assert md["status"] == mdf.status.value
 
 
-def test_insert_prices():
-    market_update = {
-        "op": "mcm",
-        "pt": 10,
-        "mc": [
-            {
-                "id": "1.2",
-                "marketDefinition": {
-                    "bettingType": "ODDS",
-                    "numberOfActiveRunners": 2,
-                    "runners": [{"id": 1, "sortPriority": 1}],
-                },
-                "rc": [{"id": 1, "bdatb": [[0, 1.2, 24]]}],
-            }
-        ],
-    }
+@given(initial_market_change_message())
+def test_initial_sub_image(initial_sub_image):
+    mc = MarketCache()
 
-    market_cache = MarketCache()
-    market_updates = market_cache.update(market_update)
+    mc(initial_sub_image)
+    assert len(mc.market_books) == len(initial_sub_image["mc"])
 
-    assert market_updates[0].runner_book.price_sizes[0, 0, 0, 0] == 1.2
-    assert market_updates[0].runner_book.price_sizes[0, 0, 0, 1] == 24
+    mc(initial_sub_image)
+    assert len(mc.market_books) == len(initial_sub_image["mc"])

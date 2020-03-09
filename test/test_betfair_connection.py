@@ -1,6 +1,8 @@
 import socket
 
 import pytest
+import hypothesis.strategies as st
+
 from hypothesis import given
 
 from betfairstreamer.server import BetfairConnection
@@ -9,32 +11,39 @@ from test.generators import generate_message
 
 def test_closed_connection():
     s1, s2 = socket.socketpair()
+
     connection = BetfairConnection(s1)
 
     s2.close()
 
     with pytest.raises(ConnectionError):
-        connection.receive()
+        connection.read()
 
 
-@given(msg=generate_message())
-def test_receive(msg):
+@given(buffer_size=st.integers(4, 100), msg=generate_message())
+def test_receive(buffer_size, msg):
     count, byte_msg, str_msg = msg
 
     s1, s2 = socket.socketpair()
 
-    connection = BetfairConnection(s1, read_buffer_size=4)
+    connection = BetfairConnection(s1, buffer_size=buffer_size)
 
-    s1.settimeout(0.01)
     s2.sendall(byte_msg)
+    s2.close()
 
     msg_count = 0
+    messages = []
 
     try:
         while True:
-            msg = connection.receive()
+            msg = connection.read()
+
+            for m in msg:
+                messages.append(m)
+
             msg_count += len(msg)
-    except socket.timeout:
+    except ConnectionError:
         pass
 
+    assert messages == byte_msg.split(b"\r\n")[:-1]
     assert msg_count == count

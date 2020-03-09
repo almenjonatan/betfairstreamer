@@ -4,7 +4,7 @@ The following creates a connection to betfair and returns the raw messages
 
 ```python
 from betfairstreamer.server import BetfairConnection
-from betfairstreamer.resources.api_messages import (
+from betfairstreamer.betfair.models import (
     Field,
     MarketDataFilter,
     MarketFilter,
