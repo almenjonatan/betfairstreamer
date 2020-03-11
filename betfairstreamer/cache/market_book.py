@@ -38,7 +38,7 @@ class RunnerBook:
             if bdatl:
                 new_values = np.array(bdatl)
                 bdatl_index = new_values[:, 0].astype(int)
-                self.best_display[sort_priority, 0, bdatl_index, :] = new_values[:, 1:]
+                self.best_display[sort_priority, 1, bdatl_index, :] = new_values[:, 1:]
 
             if batb:
                 new_values = np.array(batb)
@@ -48,7 +48,7 @@ class RunnerBook:
             if batl:
                 new_values = np.array(batl)
                 batl_index = new_values[:, 0].astype(int)
-                self.best_offers[sort_priority, 0, batl_index, :] = new_values[:, 1:]
+                self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
 
     @classmethod
     def from_betfair(cls: Type[RunnerBook], market_definition: MarketDefinition) -> RunnerBook:
