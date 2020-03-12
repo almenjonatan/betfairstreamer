@@ -170,7 +170,7 @@ class MarketChangeMessageDict(TypedDict, total=False):
     pt: int
     initialClk: str
     mc: List[MarketChangeDict]
-    conflateMs: int
+    con: int
     segmentType: str
     status: int
 

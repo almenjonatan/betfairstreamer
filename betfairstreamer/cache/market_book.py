@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Type
+from typing import Dict, List
 
 import attr
 import numpy as np
@@ -50,8 +50,10 @@ class RunnerBook:
                 batl_index = new_values[:, 0].astype(int)
                 self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
 
+            self.metadata[sort_priority] = r.get("ltp", 0)
+
     @classmethod
-    def from_betfair(cls: Type[RunnerBook], market_definition: MarketDefinition) -> RunnerBook:
+    def from_betfair(cls, market_definition: MarketDefinition) -> RunnerBook:
 
         number_of_runners = len(market_definition.runners)
 

@@ -14,6 +14,7 @@ class MarketCache:
 
     def update(self, stream_update: MarketChangeMessageDict) -> List[MarketBook]:
 
+        stream_update.get("con")
         updated_market_books = []
 
         self.publish_time = stream_update["pt"]
