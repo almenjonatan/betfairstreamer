@@ -5,7 +5,7 @@ class PersistenceType(Enum):
     L = "LAPSE"
     P = "PERSIST"
     MOC = "MARKET_ON_CHANGE"
-    LAPSE = "LIMIT"
+    LAPSE = "LAPSE"
     PERSIST = "PERSIST"
     MARKET_ON_CLOSE = "MARKET_ON_CHANGE"
 
