@@ -50,7 +50,7 @@ class RunnerBook:
                 batl_index = new_values[:, 0].astype(int)
                 self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
 
-            self.metadata[sort_priority] = r.get("ltp", 0)
+            self.metadata[sort_priority][:] = [r.get("ltp", 0), r.get("tv", 0)]
 
     @classmethod
     def from_betfair(cls, market_definition: MarketDefinition) -> RunnerBook:
@@ -60,7 +60,7 @@ class RunnerBook:
         best_display = -1 * np.ones(shape=(number_of_runners, 2, 3, 2))
         best_offers = -1 * np.ones(shape=(number_of_runners, 2, 3, 2))
 
-        metadata = np.zeros(shape=(number_of_runners,))
+        metadata = np.zeros(shape=(number_of_runners, 2))
 
         sort_priority_mapping = {r.id: r.sort_priority for r in market_definition.runners}
 
