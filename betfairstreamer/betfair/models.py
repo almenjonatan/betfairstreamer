@@ -1,34 +1,34 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional, Protocol, List, Union, Type
+from typing import List, Optional, Protocol, Type, Union
 
 import attr
 
 from betfairstreamer.betfair.definitions import (
     AuthenticationMessageDict,
-    StatusMessageDict,
     ConnectionMessageDict,
+    KeyLineDefinitionDict,
+    KeyLineSelectionDict,
+    MarketDataFilterDict,
+    MarketDefinitionDict,
+    MarketFilterDict,
+    MarketSubscriptionMessageDict,
     OrderFilterDict,
     OrderSubscriptionMessageDict,
-    MarketSubscriptionMessageDict,
-    MarketDataFilterDict,
-    MarketFilterDict,
-    RunnerDefinitionDict,
-    KeyLineSelectionDict,
-    KeyLineDefinitionDict,
-    MarketDefinitionDict,
     PriceLadderDefinitionDict,
+    RunnerDefinitionDict,
+    StatusMessageDict,
 )
 from betfairstreamer.betfair.enums import (
     OP,
-    StatusCode,
-    ErrorCode,
     BettingType,
+    ErrorCode,
     Field,
-    RunnerStatus,
     MarketStatus,
     PriceLadderDefinitionType,
+    RunnerStatus,
+    StatusCode,
 )
 from betfairstreamer.utils import parse_betfair_date
 

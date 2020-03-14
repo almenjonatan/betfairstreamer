@@ -3,18 +3,18 @@ from __future__ import annotations
 import select
 import socket
 import ssl
-from typing import List, Type, Dict, Union, Generator
+from typing import Dict, Generator, List, Type, Union
 
 import attr
 import orjson
 
+from betfairstreamer.betfair.enums import OP
 from betfairstreamer.betfair.models import (
     AuthenticationMessage,
     BetfairMessage,
     MarketSubscriptionMessage,
     OrderSubscriptionMessage,
 )
-from betfairstreamer.betfair.enums import OP
 
 
 def encode(msg: BetfairMessage) -> bytes:

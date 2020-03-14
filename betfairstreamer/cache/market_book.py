@@ -5,11 +5,8 @@ from typing import Dict, List
 import attr
 import numpy as np
 
+from betfairstreamer.betfair.definitions import MarketChangeDict, RunnerChangeDict
 from betfairstreamer.betfair.models import MarketDefinition
-from betfairstreamer.betfair.definitions import (
-    RunnerChangeDict,
-    MarketChangeDict,
-)
 
 
 @attr.s(slots=True)

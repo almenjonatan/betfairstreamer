@@ -7,8 +7,8 @@ import attr
 from betfairlightweight.resources.bettingresources import CurrentOrder as BetfairLightweightOrder
 
 from betfairstreamer.betfair.definitions import OrderDict
-from betfairstreamer.betfair.enums import OrderStatus, Side, PersistenceType, OrderType
-from betfairstreamer.utils import parse_utc_timestamp, localize_betfair_date
+from betfairstreamer.betfair.enums import OrderStatus, OrderType, PersistenceType, Side
+from betfairstreamer.utils import localize_betfair_date, parse_utc_timestamp
 
 
 @attr.s(slots=True)
