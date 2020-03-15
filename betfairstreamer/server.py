@@ -21,9 +21,23 @@ def encode(msg: BetfairMessage) -> bytes:
     return orjson.dumps(msg.to_dict()) + b"\r\n"
 
 
+def create_betfair_socket(cert_path: str) -> socket.socket:
+
+    hostname = "stream-api.betfair.com"
+    port = 443
+
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, capath=cert_path)
+
+    betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
+
+    betfair_ssl_socket.connect((hostname, port))
+
+    return betfair_ssl_socket
+
+
 @attr.s(auto_attribs=True)
 class BetfairConnection:
-
     connection: socket.socket
     buffer_size: int = 8192
     crlf: bytes = b"\r\n"
@@ -36,11 +50,16 @@ class BetfairConnection:
         if part == b"":
             raise ConnectionError("Socket closed!")
 
-        self.buffer = self.buffer + part
-
-        before, sep, after = self.buffer.partition(self.crlf)
-
         messages = []
+
+        if part[:1] == b"\n" and self.buffer[-1:] == b"\r":
+            messages.append(self.buffer[:-1])
+            self.buffer = b""
+            part = part[1:]
+
+        before, sep, after = part.partition(self.crlf)
+
+        before = self.buffer + before
 
         while sep == self.crlf:
             messages.append(before)
@@ -60,18 +79,8 @@ class BetfairConnection:
         subscription_message: Union[MarketSubscriptionMessage, OrderSubscriptionMessage],
         session_token: str,
         app_key: str,
+        cert_path: str = "./certs",
     ) -> BetfairConnection:
-
-        hostname = "stream-api.betfair.com"
-        port = 443
-        cert_path = "./certs"
-
-        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, capath=cert_path)
-
-        betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
-
-        betfair_ssl_socket.connect((hostname, port))
 
         auth_message = AuthenticationMessage(
             op=OP.authentication,
@@ -79,6 +88,8 @@ class BetfairConnection:
             session=session_token,
             app_key=app_key,
         )
+
+        betfair_ssl_socket = create_betfair_socket(cert_path)
 
         betfair_ssl_socket.sendall(encode(auth_message))
         betfair_ssl_socket.sendall(encode(subscription_message))
@@ -104,7 +115,6 @@ class BetfairConnectionPool:
 
 @attr.s(auto_attribs=True)
 class FileStreamer:
-
     path: str
 
     def read(self) -> Generator[List[bytes], None, None]:

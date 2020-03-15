@@ -3,7 +3,7 @@ import socket
 import pytest
 import hypothesis.strategies as st
 
-from hypothesis import given
+from hypothesis import given, note, settings, reproduce_failure
 
 from betfairstreamer.server import BetfairConnection
 from test.generators import generate_message
@@ -20,6 +20,7 @@ def test_closed_connection():
         connection.read()
 
 
+@settings(print_blob=True)
 @given(buffer_size=st.integers(4, 100), msg=generate_message())
 def test_receive(buffer_size, msg):
     count, byte_msg, str_msg = msg
@@ -45,5 +46,6 @@ def test_receive(buffer_size, msg):
     except ConnectionError:
         pass
 
+    note(str_msg)
     assert messages == byte_msg.split(b"\r\n")[:-1]
     assert msg_count == count

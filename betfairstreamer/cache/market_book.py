@@ -47,7 +47,10 @@ class RunnerBook:
                 batl_index = new_values[:, 0].astype(int)
                 self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
 
-            self.metadata[sort_priority][:] = [r.get("ltp", 0), r.get("tv", 0)]
+            if "ltp" in r:
+                self.metadata[sort_priority, 0] = r.get("ltp")
+            if "tv" in r:
+                self.metadata[sort_priority, 1] = r.get("tv")
 
     @classmethod
     def from_betfair(cls, market_definition: MarketDefinition) -> RunnerBook:
