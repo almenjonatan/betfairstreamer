@@ -12,6 +12,7 @@ pytest-mypy
 pytest-cov
 pytest-watch
 pylint
+twine
 isort
 tox
 pytz
