@@ -64,14 +64,18 @@ class OrderCache:
 
             self.size_remaining[key] += order.size_remaining - cached_order.size_remaining
 
+            if order.size_remaining - cached_order.size_remaining < 0:
+                self.orders[order.bet_id] = order
+                self.orders_on_selection[key][order.bet_id] = order
+
         else:
             self.size_matched[key] += order.size_matched
             self.size_cancelled[key] += order.size_cancelled
             self.size_voided[key] += order.size_voided
             self.size_remaining[key] += order.size_remaining
 
-        self.orders[order.bet_id] = order
-        self.orders_on_selection[key][order.bet_id] = order
+            self.orders[order.bet_id] = order
+            self.orders_on_selection[key][order.bet_id] = order
 
         return order
 

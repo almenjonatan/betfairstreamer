@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from enum import Enum
+from typing import Any, Dict, Optional
 
 import attr
 from betfairlightweight.resources.bettingresources import CurrentOrder as BetfairLightweightOrder
@@ -93,3 +94,15 @@ class Order:
             customer_strategy_reference=order.customer_strategy_ref,
             matched_date=localize_betfair_date(order.matched_date),
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {}
+        for k, v in attr.asdict(self).items():
+            if isinstance(v, Enum):
+                d[k] = v.value
+            elif isinstance(v, datetime):
+                d[k] = v.isoformat()
+            else:
+                d[k] = v
+
+        return d
