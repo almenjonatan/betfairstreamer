@@ -9,6 +9,10 @@ from betfairstreamer.betfair.definitions import MarketChangeDict, RunnerChangeDi
 from betfairstreamer.betfair.models import MarketDefinition
 
 
+def create_sort_priority_mapping(market_definition: MarketDefinition) -> Dict[int, int]:
+    return {r.id: r.sort_priority for r in market_definition.runners}
+
+
 @attr.s(slots=True)
 class RunnerBook:
     metadata = attr.ib(type=np.array)
@@ -62,7 +66,7 @@ class RunnerBook:
 
         metadata = np.zeros(shape=(number_of_runners, 2))
 
-        sort_priority_mapping = {r.id: r.sort_priority for r in market_definition.runners}
+        sort_priority_mapping = create_sort_priority_mapping(market_definition)
 
         return cls(
             best_display=best_display,
@@ -74,7 +78,6 @@ class RunnerBook:
 
 @attr.s(slots=True)
 class MarketBook:
-
     market_id = attr.ib(type=str)
     market_definition = attr.ib(type=MarketDefinition)
     runner_book = attr.ib(type=RunnerBook)
@@ -84,8 +87,12 @@ class MarketBook:
         if market_book.get("marketDefinition") is not None:
             self.market_definition = MarketDefinition.from_betfair(market_book["marketDefinition"])
 
-        if market_book.get("img", False):
-            self.runner_book = RunnerBook.from_betfair(self.market_definition)
+            if market_book.get("img", False):
+                self.runner_book = RunnerBook.from_betfair(self.market_definition)
+
+            self.runner_book.sort_priority_mapping = create_sort_priority_mapping(
+                self.market_definition
+            )
 
         self.runner_book.update(market_book.get("rc", []))
 

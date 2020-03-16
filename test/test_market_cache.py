@@ -1,24 +1,22 @@
+import hypothesis.strategies as st
 from hypothesis import given
 
-from betfairstreamer.betfair.models import MarketDefinition
-from betfairstreamer.cache.market_cache import MarketCache
-from test.generators import market_definition, initial_market_change_message
+from betfairstreamer.betfair.definitions import MarketDefinitionDict
+from test.generators import market_definition, generate_market_definition_from_prev_version
 
 
-@given(market_definition())
-def test_insert_market_definition(md):
-    mdf = MarketDefinition.from_betfair(md)
+@given(st.data(), market_definition())
+def test_market_definition_generator(data, mdf: MarketDefinitionDict):
+    prev_runner_sort = 0
 
-    assert md["bspMarket"] == mdf.bsp_market
-    assert md["status"] == mdf.status.value
+    md2 = data.draw(generate_market_definition_from_prev_version(mdf))
 
+    assert len(md2["runners"]) == len(mdf["runners"])
 
-@given(initial_market_change_message())
-def test_initial_sub_image(initial_sub_image):
-    mc = MarketCache()
+    for r in mdf["runners"]:
+        assert r["sortPriority"] == prev_runner_sort + 1
 
-    mc(initial_sub_image)
-    assert len(mc.market_books) == len(initial_sub_image["mc"])
+        assert r["id"] is not None
+        assert r["sortPriority"] is not None
 
-    mc(initial_sub_image)
-    assert len(mc.market_books) == len(initial_sub_image["mc"])
+        prev_runner_sort = r["sortPriority"]

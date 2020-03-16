@@ -20,7 +20,6 @@ def test_closed_connection():
         connection.read()
 
 
-@settings(print_blob=True)
 @given(buffer_size=st.integers(4, 100), msg=generate_message())
 def test_receive(buffer_size, msg):
     count, byte_msg, str_msg = msg

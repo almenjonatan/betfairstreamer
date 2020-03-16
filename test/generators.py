@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 
 import hypothesis.strategies as st
 import numpy as np
@@ -21,19 +21,59 @@ def generate_message(draw: Any) -> Tuple[int, bytes, str]:
 
 
 @composite
-def market_definition(draw) -> MarketDefinitionDict:
-    number_of_runners = draw(st.integers(1, 20))
-
+def generate_runner_definitions(draw, number_of_runners):
     runner_definitions = []
 
     for i in range(number_of_runners):
         runner_definitions.append(
-            {
-                "status": draw(st.sampled_from(RunnerStatus).map(lambda v: v.value)),
-                "id": draw(st.integers(0, 50)),
-                "sortPriority": i + 1,
-            }
+            draw(st.fixed_dictionaries({
+                "status": st.sampled_from(RunnerStatus).map(lambda v: v.value),
+                "id": st.integers(0, 50),
+                "sortPriority": st.just(i + 1),
+            }))
         )
+
+    return runner_definitions
+
+
+@composite
+def generate_market_definition_from_prev_version(draw, mdf: MarketDefinitionDict):
+    return draw(st.fixed_dictionaries({
+        "bspMarket": st.just(mdf["bspMarket"]),
+        "turnInPlayEnabled": st.just(mdf["turnInPlayEnabled"]),
+        "persistenceEnabled": st.just(mdf["persistenceEnabled"]),
+        "marketBaseRate": st.just(mdf["marketBaseRate"]),
+        "eventId": st.just(mdf["eventId"]),
+        "eventTypeId": st.just(mdf["eventTypeId"]),
+        "numberOfWinners": st.just(mdf["numberOfWinners"]),
+        "bettingType": st.just(mdf["bettingType"]),
+        "marketType": st.just(mdf["marketType"]),
+        "marketTime": st.just(mdf["marketTime"]),
+        "suspendTime": st.just(mdf["suspendTime"]),
+        "bspReconciled": st.just(mdf["bspReconciled"]),
+        "complete": st.just(mdf["complete"]),
+        "inPlay": st.just(mdf["inPlay"]),
+        "crossMatching": st.just(mdf["crossMatching"]),
+        "runnersVoidable": st.just(mdf["runnersVoidable"]),
+        "numberOfActiveRunners": st.just(mdf["numberOfActiveRunners"]),
+        "betDelay": st.just(mdf["betDelay"]),
+        "status": st.just(mdf["status"]),
+        "runners": generate_runner_definitions(len(mdf["runners"])),
+        "regulators": st.just(mdf["regulators"]),
+        "countryCode": st.just(mdf["countryCode"]),
+        "discountAllowed": st.just(mdf["discountAllowed"]),
+        "timezone": st.just(mdf["timezone"]),
+        "openDate": st.just(mdf["openDate"]),
+        "version": st.just(mdf["version"]),
+        "priceLadderDefinition": st.just(mdf["priceLadderDefinition"])
+    }))
+
+
+@composite
+def market_definition(draw) -> MarketDefinitionDict:
+    number_of_runners = draw(st.integers(1, 20))
+
+    runner_definitions = draw(generate_runner_definitions(number_of_runners))
 
     md = st.fixed_dictionaries(
         {
@@ -71,41 +111,50 @@ def market_definition(draw) -> MarketDefinitionDict:
 
 
 @composite
-def runner_change_messages(
-    draw, selection_ids, ladder_levels=3,
-):
+def generate_single_market_update(draw, market_id: str, prev_market_definition: MarketDefinitionDict):
+    market_update = draw(st.fixed_dictionaries({
+        "id": st.just(market_id),
+        "marketDefinition": st.one_of(st.none(), generate_market_definition_from_prev_version(prev_market_definition))
+    }))
 
-    rcs = []
-    for selection_id in selection_ids:
-        price = st.floats(1.01, 1000).map(lambda p: round(p, 2))
-        size = st.floats(0, 100000000000).map(lambda s: round(s, 2))
+    return draw(st.fixed_dictionaries({
+        "op": st.just("mcm"),
+        "pt": st.just(10000000001),
+        "mc": st.just([market_update]),
+    }))
 
-        betting_types = ["batb", "batl", "bdatb", "bdatl"]
-        no_betting_types = draw(st.integers(1, len(betting_types)))
 
-        selected_betting_types = np.random.choice(
-            betting_types, size=no_betting_types, replace=False
-        )
-        rc = {"id": selection_id}
+@composite
+def generate_initial_image(draw, market_ids: List[str]):
+    market_update = draw(st.fixed_dictionaries({
+        "id": st.just(market_ids[0]),
+        "marketDefinition": market_definition()
+    }))
 
-        for t in selected_betting_types:
-            no_ladder_levels = draw(st.integers(0, ladder_levels))
+    return draw(st.fixed_dictionaries({
+        "op": st.just("mcm"),
+        "pt": st.just(10000000000),
+        "mc": st.just([market_update]),
+        "img": st.just(True)
+    }))
 
-            price_size = draw(
-                st.lists(
-                    st.tuples(price, size), min_size=no_ladder_levels, max_size=no_ladder_levels
-                )
-            )
-            rc[t] = [
-                list((a,) + b)
-                for a, b in zip(
-                    np.random.choice(ladder_levels, size=len(price_size), replace=False),
-                    price_size,
-                )
-            ]
-        rcs.append(rc)
 
-    return draw(st.just(rcs))
+@composite
+def generate_price_size(draw, ladders: int):
+    price = st.floats(1.01, 1000).map(lambda p: round(p, 2))
+    size = st.floats(0, 100000000000).map(lambda s: round(s, 2))
+
+    price_sizes = draw(st.lists(st.tuples(price, size).map(list), max_size=ladders, unique_by=lambda u: u[0]))
+    return sorted(price_sizes, key=lambda u: u[0])
+
+
+@composite
+def generate_runner_change(draw, selection_id):
+    return draw(st.fixed_dictionaries({
+        "id": st.just(selection_id)
+    }, optional={
+        "batb": st.one_of(st.none(), st.just([]), generate_price_size(3)),
+    }))
 
 
 @composite
@@ -132,6 +181,7 @@ def initial_market_change_message(draw):
                 "pt": st.integers(0, 100),
                 "mc": st.just(market_updates),
                 "ct": st.just("SUB_IMAGE"),
+                "img": st.just(True)
             }
         )
     )
