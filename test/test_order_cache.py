@@ -134,7 +134,6 @@ def test_insert_order():
 
 
 def test_list_current_orders_insert():
-
     order_cache = OrderCache()
 
     co = {
@@ -385,7 +384,7 @@ def test_list_current_orders_insert():
 
     for o in updates:
         assert (
-            order_cache.get_size_remaining(o.market_id, o.selection_id, o.side) == o.size_remaining
+                order_cache.get_size_remaining(o.market_id, o.selection_id, o.side) == o.size_remaining
         )
 
 
@@ -443,10 +442,81 @@ def test_order_on_selection():
     order_cache = OrderCache.from_betfair(CurrentOrders(**co))
 
     assert (
-        len(
-            order_cache.get_orders_on_selection(
-                market_id="1.169206844", selection_id=1221385, side=Side.BACK
+            len(
+                order_cache.get_orders_on_selection(
+                    market_id="1.169206844", selection_id=1221385, side=Side.BACK
+                )
             )
-        )
-        == 2
+            == 2
     )
+
+
+def test_out_of_band_order():
+    co = {
+        "currentOrders": [
+            {
+                "betId": "197366684443",
+                "marketId": "1.169206844",
+                "selectionId": 1221385,
+                "handicap": 0.0,
+                "priceSize": {"price": 6.0, "size": 50.0},
+                "bspLiability": 0.0,
+                "side": "BACK",
+                "status": "EXECUTABLE",
+                "persistenceType": "LAPSE",
+                "orderType": "LIMIT",
+                "placedDate": "2020-03-06T21:26:17.000Z",
+                "matchedDate": "2020-03-06T22:48:30.000Z",
+                "averagePriceMatched": 0.0,
+                "sizeMatched": 10.0,
+                "sizeRemaining": 40.0,
+                "sizeLapsed": 0.0,
+                "sizeCancelled": 0,
+                "sizeVoided": 0.0,
+                "regulatorCode": "SWEDISH GAMBLING AUTHORITY",
+                "customerOrderRef": "5",
+            }],
+        "moreAvailable": False,
+    }
+
+    order_cache = OrderCache.from_betfair(CurrentOrders(**co))
+
+    o = {
+        "op": "ocm",
+        "initialClk": "asdfasdfas",
+        "clk": "asdfwefa",
+        "conflateMs": 0,
+        "heartbeatMs": 5000,
+        "pt": 10,
+        "ct": "SUB_IMAGE",
+        "oc": [{
+            "id": "1.169206844",
+            "orc": [
+                {"fullImage": True,
+                 "id": 1221385,
+                 "uo": [
+                     {"id": "197366684443",
+                      "p": 6.0,
+                      "s": 50,
+                      "side": "B",
+                      "status": "E",
+                      "pt": "L",
+                      "ot": "L",
+                      "pd": 1583568052000,
+                      "sm": 5,
+                      "sr": 45,
+                      "sl": 0,
+                      "sc": 0,
+                      "sv": 0,
+                      "rac": "",
+                      "rc": "REG_SWE",
+                      "rfo": "2",
+                      "rfs": ""}
+                 ]}
+            ]
+        }], "mb": [[]]
+    }
+
+    order_cache(o)
+
+    assert order_cache.orders["197366684443"].size_remaining == 40

@@ -56,15 +56,12 @@ class OrderCache:
         key = (order.market_id, order.selection_id, order.side)
 
         if cached_order:
-            self.size_matched[key] += order.size_matched - cached_order.size_matched
-
-            self.size_cancelled[key] += order.size_cancelled - cached_order.size_cancelled
-
-            self.size_voided[key] += order.size_voided - cached_order.size_voided
-
-            self.size_remaining[key] += order.size_remaining - cached_order.size_remaining
-
             if order.size_remaining - cached_order.size_remaining < 0:
+                self.size_matched[key] += order.size_matched - cached_order.size_matched
+                self.size_cancelled[key] += order.size_cancelled - cached_order.size_cancelled
+                self.size_voided[key] += order.size_voided - cached_order.size_voided
+                self.size_remaining[key] += order.size_remaining - cached_order.size_remaining
+
                 self.orders[order.bet_id] = order
                 self.orders_on_selection[key][order.bet_id] = order
 
