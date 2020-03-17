@@ -86,15 +86,12 @@ class StatusMessage:
 @attr.s(slots=True, auto_attribs=True)
 class ConnectionMessage:
     op: OP
-    id: int
     connection_id: str
 
     @classmethod
     def from_betfair(cls, connection_message: ConnectionMessageDict) -> ConnectionMessage:
         return cls(
-            op=OP[connection_message["op"]],
-            id=connection_message["id"],
-            connection_id=connection_message["connectionId"],
+            op=OP[connection_message["op"]], connection_id=connection_message["connectionId"],
         )
 
 

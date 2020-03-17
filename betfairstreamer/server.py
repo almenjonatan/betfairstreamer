@@ -1,19 +1,23 @@
 from __future__ import annotations
 
+import logging
 import select
 import socket
 import ssl
-from typing import Dict, Generator, List, Type, Union
+from typing import Any, Dict, Generator, List, Type, Union
 
 import attr
 import orjson
+from betfairlightweight import APIClient
 
 from betfairstreamer.betfair.enums import OP
 from betfairstreamer.betfair.models import (
     AuthenticationMessage,
     BetfairMessage,
+    ConnectionMessage,
     MarketSubscriptionMessage,
     OrderSubscriptionMessage,
+    StatusMessage,
 )
 
 
@@ -21,8 +25,11 @@ def encode(msg: BetfairMessage) -> bytes:
     return orjson.dumps(msg.to_dict()) + b"\r\n"
 
 
-def create_betfair_socket(cert_path: str) -> socket.socket:
+def decode(msg: bytes) -> Any:
+    return orjson.loads(msg)
 
+
+def create_betfair_socket(cert_path: str) -> socket.socket:
     hostname = "stream-api.betfair.com"
     port = 443
 
@@ -94,6 +101,9 @@ class BetfairConnection:
         betfair_ssl_socket.sendall(encode(auth_message))
         betfair_ssl_socket.sendall(encode(subscription_message))
 
+        logging.info(ConnectionMessage.from_betfair(decode(betfair_ssl_socket.recv(4096))))
+        logging.info(StatusMessage.from_betfair(decode(betfair_ssl_socket.recv(4096))))
+
         return cls(betfair_ssl_socket)
 
 
@@ -119,3 +129,20 @@ class FileStreamer:
 
     def read(self) -> Generator[List[bytes], None, None]:
         pass
+
+
+def create_connection_pool(
+    trading: APIClient,
+    subscription_messages: List[Union[MarketSubscriptionMessage, OrderSubscriptionMessage]],
+) -> BetfairConnectionPool:
+
+    connection_pool = BetfairConnectionPool()
+
+    for subscription_message in subscription_messages:
+        connection_pool.add_connection(
+            BetfairConnection.create_connection(
+                subscription_message, trading.session_token, trading.app_key
+            )
+        )
+
+    return connection_pool
