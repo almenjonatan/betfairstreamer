@@ -124,3 +124,12 @@ market_book.runner_book.best_display[1, 1, 0, :] # np.shape(...) == (2,)
 ```
 
 For more information checkout numpy slicing.
+
+### Performance
+
+#### Setup: Two processes (multiprocessing), one producer, one consumer. Hardware intel 4790K, 16Gb ram.
+
+Read from socket > 100Mb/s  
+
+Read from socket and using marketcache > 30k updates/s
+

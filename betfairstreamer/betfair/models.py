@@ -70,7 +70,6 @@ class StatusMessage:
 
     @classmethod
     def from_betfair(cls: Type[StatusMessage], status_message: StatusMessageDict) -> StatusMessage:
-
         return cls(
             op=OP[status_message["op"]],
             id=status_message["id"],
@@ -109,7 +108,6 @@ class MarketFilter:
     race_types: List[str] = attr.ib(factory=list)
 
     def to_dict(self) -> MarketFilterDict:
-
         return MarketFilterDict(
             eventIds=self.event_ids,
             countryCodes=self.country_codes,
@@ -148,7 +146,6 @@ class MarketSubscriptionMessage:
     conflate_ms: Optional[int] = None
 
     def to_dict(self) -> MarketSubscriptionMessageDict:
-
         return MarketSubscriptionMessageDict(
             id=self.id,
             op=self.op.value,
@@ -170,7 +167,6 @@ class OrderFilter:
     partition_matched_by_strategy_ref: Optional[bool] = None
 
     def to_dict(self) -> OrderFilterDict:
-
         return OrderFilterDict(
             accountIds=self.account_ids,
             includeOverallPosition=self.include_overall_position,
@@ -281,7 +277,6 @@ class MarketDefinition:
     cross_matching: bool
     runner_voidable: bool
     turn_in_play_enabled: bool
-    price_ladder_definition: PriceLadderDefinition
     discount_allowed: bool
     persistence_enabled: bool
     runners: List[RunnerDefinition]
@@ -291,7 +286,7 @@ class MarketDefinition:
     open_date: datetime
     bsp_reconciled: bool
     status: MarketStatus
-
+    price_ladder_definition: Optional[PriceLadderDefinition] = attr.ib(converter=attr.converters.optional(PriceLadderDefinition.from_betfair))  # type: ignore
     country_code: Optional[str] = None
     market_time: Optional[datetime] = None
     suspend_time: Optional[datetime] = None
@@ -330,9 +325,7 @@ class MarketDefinition:
             cross_matching=market_definition_dict["crossMatching"],
             runner_voidable=market_definition_dict["runnersVoidable"],
             turn_in_play_enabled=market_definition_dict["turnInPlayEnabled"],
-            price_ladder_definition=PriceLadderDefinition.from_betfair(
-                market_definition_dict["priceLadderDefinition"]
-            ),
+            price_ladder_definition=market_definition_dict.get("priceLadderDefinition"),
             key_line_definition=KeyLineDefinition.from_betfair(
                 market_definition_dict.get("keyLineDefinition")
             ),
