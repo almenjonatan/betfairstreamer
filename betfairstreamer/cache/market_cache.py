@@ -3,7 +3,7 @@ from typing import Dict, List
 import attr
 
 from betfairstreamer.betfair.definitions import MarketChangeMessageDict
-from betfairstreamer.cache.market_book import MarketBook
+from betfairstreamer.betfair.models import MarketBook
 
 
 @attr.s

@@ -1,6 +1,31 @@
 from typing import List, Optional, TypedDict, Union
 
 
+class LimitOrderDict(TypedDict, total=False):
+    size: float
+    price: float
+    persistenceType: str
+    timeInForce: Optional[str]
+    minFillSize: Optional[float]
+    betTargetType: Optional[str]
+    betTargetSize: Optional[float]
+
+
+class PlaceInstructionDict(TypedDict, total=False):
+    orderType: str
+    selectionId: int
+    side: str
+
+    handicap: Optional[float]
+    limitOrder: Optional[LimitOrderDict]
+    customerOrderRef: Optional[str]
+
+
+class PlaceInstruction(TypedDict):
+    marketId: str
+    instructions: List[PlaceInstructionDict]
+
+
 class ResponseMessageDict(TypedDict):
     op: str
     id: int
@@ -200,7 +225,7 @@ class OrderDict(TypedDict):
     sr: Union[int, float]
 
 
-class OrderRunnerChangeDict(TypedDict, total=False):
+class OrderRunnerChange(TypedDict, total=False):
     mb: List[List[float]]
     smc: object
     uo: List[OrderDict]
@@ -210,21 +235,21 @@ class OrderRunnerChangeDict(TypedDict, total=False):
     ml: List[List[float]]
 
 
-class OrderMarketChangeDict(TypedDict, total=False):
+class OrderChange(TypedDict, total=False):
     accountId: int
-    orc: List[OrderRunnerChangeDict]
+    orc: List[OrderRunnerChange]
     closed: bool
     id: str
 
 
-class OrderChangeMessageDict(TypedDict, total=False):
+class OrderChangeMessage(TypedDict, total=False):
     op: str
     id: int
     ct: str
     clk: str
     heartbeatMs: int
     pt: int
-    oc: List[OrderMarketChangeDict]
+    oc: List[OrderChange]
     initialClk: str
     conflateMs: int
     segmentType: str

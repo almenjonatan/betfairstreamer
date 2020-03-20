@@ -1,22 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Protocol, Type, Union
+from enum import Enum
+from typing import Any, Dict, List, Optional, Protocol, Type, Union
 
 import attr
+import numpy as np
+from betfairlightweight.resources.bettingresources import CurrentOrder as BetfairLightweightOrder
 
 from betfairstreamer.betfair.definitions import (
     AuthenticationMessageDict,
     ConnectionMessageDict,
     KeyLineDefinitionDict,
     KeyLineSelectionDict,
+    MarketChangeDict,
     MarketDataFilterDict,
     MarketDefinitionDict,
     MarketFilterDict,
     MarketSubscriptionMessageDict,
+    OrderDict,
     OrderFilterDict,
     OrderSubscriptionMessageDict,
     PriceLadderDefinitionDict,
+    RunnerChangeDict,
     RunnerDefinitionDict,
     StatusMessageDict,
 )
@@ -26,11 +32,15 @@ from betfairstreamer.betfair.enums import (
     ErrorCode,
     Field,
     MarketStatus,
+    OrderStatus,
+    OrderType,
+    PersistenceType,
     PriceLadderDefinitionType,
     RunnerStatus,
+    Side,
     StatusCode,
 )
-from betfairstreamer.utils import parse_betfair_date
+from betfairstreamer.utils import localize_betfair_date, parse_betfair_date, parse_utc_timestamp
 
 
 class BetfairMessage(Protocol):
@@ -341,4 +351,200 @@ class MarketDefinition:
             bsp_reconciled=market_definition_dict["bspReconciled"],
             line_interval=market_definition_dict.get("lineInterval"),
             status=MarketStatus[market_definition_dict["status"]],
+        )
+
+
+@attr.s(slots=True)
+class Order:
+    market_id = attr.ib(type=str)
+    selection_id = attr.ib(type=int)
+    bet_id = attr.ib(type=str)
+    bsp_liability = attr.ib(type=float)
+    status = attr.ib(type=OrderStatus)
+    side = attr.ib(type=Side)
+    persistence_type = attr.ib(type=PersistenceType)
+    order_type = attr.ib(type=OrderType)
+    price = attr.ib(type=float)
+    regulator_code = attr.ib(type=str)
+    size = attr.ib(type=float)
+    placed_date = attr.ib(type=Optional[datetime])
+    matched_date = attr.ib(type=Optional[datetime], default=None)
+    lapsed_date = attr.ib(type=Optional[datetime], default=None)
+    regulator_auth_code = attr.ib(type=str, default="")
+    lapse_status_reason_code = attr.ib(type=Optional[str], default=None)
+    handicap = attr.ib(type=Optional[float], default=0)
+    size_cancelled = attr.ib(type=float, default=0)
+    size_voided = attr.ib(type=float, default=0)
+    size_lapsed = attr.ib(type=float, default=0)
+    average_price_matched = attr.ib(type=float, default=0)
+    size_matched = attr.ib(type=float, default=0)
+    size_remaining = attr.ib(type=float, default=0)
+    customer_strategy_reference = attr.ib(type=str, default="")
+    customer_order_reference = attr.ib(type=str, default=None)
+
+    @classmethod
+    def from_betfair_stream_api(cls, market_id: str, selection_id: int, order: OrderDict) -> Order:
+        return cls(
+            market_id=market_id,
+            selection_id=selection_id,
+            side=Side[order["side"]],
+            size_voided=order["sv"],
+            persistence_type=PersistenceType[str(order.get("pt"))],
+            order_type=OrderType[order["ot"]],
+            lapse_status_reason_code=order.get("lsrc"),
+            price=order["p"],
+            size_cancelled=order["sc"],
+            regulator_code=order["rc"],
+            size=order["s"],
+            placed_date=parse_utc_timestamp(order["pd"]),
+            regulator_auth_code=order["rac"],
+            matched_date=parse_utc_timestamp(order.get("md")),
+            lapsed_date=parse_utc_timestamp(order.get("ld")),
+            size_lapsed=order["sl"],
+            average_price_matched=order.get("avp", 0),
+            size_matched=order["sm"],
+            bet_id=order["id"],
+            bsp_liability=order.get("bsp", 0),
+            customer_strategy_reference=order["rfs"],
+            customer_order_reference=order["rfo"],
+            status=OrderStatus[order["status"]],
+            size_remaining=order["sr"],
+        )
+
+    @classmethod
+    def from_betfair_rest_api(cls, order: BetfairLightweightOrder) -> Order:
+        return cls(
+            bet_id=order.bet_id,
+            market_id=order.market_id,
+            selection_id=order.selection_id,
+            handicap=order.handicap,
+            price=order.price_size.price,
+            size=order.price_size.size,
+            side=Side[order.side],
+            status=OrderStatus[order.status],
+            persistence_type=PersistenceType[order.persistence_type],
+            order_type=OrderType[order.order_type],
+            bsp_liability=order.bsp_liability,
+            placed_date=localize_betfair_date(order.placed_date),
+            average_price_matched=order.average_price_matched,
+            size_matched=order.size_matched,
+            size_remaining=order.size_remaining,
+            size_lapsed=order.size_lapsed,
+            size_cancelled=order.size_cancelled,
+            regulator_code=order.regulator_code,
+            customer_order_reference=order.customer_order_ref,
+            customer_strategy_reference=order.customer_strategy_ref,
+            matched_date=localize_betfair_date(order.matched_date),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {}
+        for k, v in attr.asdict(self).items():
+            if isinstance(v, Enum):
+                d[k] = v.value
+            elif isinstance(v, datetime):
+                d[k] = v.isoformat()
+            else:
+                d[k] = v
+
+        return d
+
+
+def create_sort_priority_mapping(market_definition: MarketDefinition) -> Dict[int, int]:
+    return {r.id: r.sort_priority for r in market_definition.runners}
+
+
+@attr.s(slots=True)
+class RunnerBook:
+    metadata = attr.ib(type=np.array)
+    sort_priority_mapping = attr.ib(type=Dict[int, int])
+    best_display = attr.ib(type=np.array, default=None)
+    best_offers = attr.ib(type=np.array, default=None)
+
+    def update(self, runner_change: List[RunnerChangeDict]) -> None:
+
+        for r in runner_change:
+            sort_priority = self.sort_priority_mapping[r["id"]] - 1
+
+            bdatb = r.get("bdatb", [])
+            bdatl = r.get("bdatl", [])
+
+            batb = r.get("batb", [])
+            batl = r.get("batl", [])
+
+            if bdatb:
+                new_values = np.array(bdatb)
+                bdatb_index = new_values[:, 0].astype(int)
+                self.best_display[sort_priority, 0, bdatb_index, :] = new_values[:, 1:]
+
+            if bdatl:
+                new_values = np.array(bdatl)
+                bdatl_index = new_values[:, 0].astype(int)
+                self.best_display[sort_priority, 1, bdatl_index, :] = new_values[:, 1:]
+
+            if batb:
+                new_values = np.array(batb)
+                batb_index = new_values[:, 0].astype(int)
+                self.best_offers[sort_priority, 0, batb_index, :] = new_values[:, 1:]
+
+            if batl:
+                new_values = np.array(batl)
+                batl_index = new_values[:, 0].astype(int)
+                self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
+
+            if "ltp" in r:
+                self.metadata[sort_priority, 0] = r.get("ltp")
+            if "tv" in r:
+                self.metadata[sort_priority, 1] = r.get("tv")
+
+    @classmethod
+    def from_betfair(cls, market_definition: MarketDefinition) -> RunnerBook:
+
+        number_of_runners = len(market_definition.runners)
+
+        best_display = -1 * np.ones(shape=(number_of_runners, 2, 3, 2))
+        best_offers = -1 * np.ones(shape=(number_of_runners, 2, 3, 2))
+
+        metadata = np.zeros(shape=(number_of_runners, 2))
+
+        sort_priority_mapping = create_sort_priority_mapping(market_definition)
+
+        return cls(
+            best_display=best_display,
+            best_offers=best_offers,
+            metadata=metadata,
+            sort_priority_mapping=sort_priority_mapping,
+        )
+
+
+@attr.s(slots=True)
+class MarketBook:
+    market_id = attr.ib(type=str)
+    market_definition = attr.ib(type=MarketDefinition)
+    runner_book = attr.ib(type=RunnerBook)
+
+    def update(self, market_book: MarketChangeDict) -> None:
+
+        if market_book.get("marketDefinition") is not None:
+            self.market_definition = MarketDefinition.from_betfair(market_book["marketDefinition"])
+
+            if market_book.get("img", False):
+                self.runner_book = RunnerBook.from_betfair(self.market_definition)
+
+            self.runner_book.sort_priority_mapping = create_sort_priority_mapping(
+                self.market_definition
+            )
+
+        self.runner_book.update(market_book.get("rc", []))
+
+    @classmethod
+    def from_betfair(cls, market_book: MarketChangeDict) -> MarketBook:
+
+        market_definition = MarketDefinition.from_betfair(market_book["marketDefinition"])
+        runner_book = RunnerBook.from_betfair(market_definition)
+
+        return cls(
+            market_id=market_book["id"],
+            market_definition=market_definition,
+            runner_book=runner_book,
         )

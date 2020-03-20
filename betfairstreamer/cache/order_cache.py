@@ -6,9 +6,9 @@ from typing import Dict, List, Optional, Tuple
 import attr
 from betfairlightweight.resources.bettingresources import CurrentOrders
 
-from betfairstreamer.betfair.definitions import OrderChangeMessageDict
+from betfairstreamer.betfair.definitions import OrderChangeMessage
 from betfairstreamer.betfair.enums import Side
-from betfairstreamer.cache.order_book import Order
+from betfairstreamer.betfair.models import Order
 
 
 @attr.s(slots=True, weakref_slot=False)
@@ -37,7 +37,7 @@ class OrderCache:
 
     latest_order = attr.ib(type=Dict[Tuple[str, int, Side], Order], factory=dict)
 
-    def update(self, order_change_message: OrderChangeMessageDict) -> List[Order]:
+    def update(self, order_change_message: OrderChangeMessage) -> List[Order]:
         updated_orders = []
 
         for m in order_change_message.get("oc", []):
@@ -123,7 +123,7 @@ class OrderCache:
 
         return round(back_bets - lay_bets)
 
-    def __call__(self, order_change_message: OrderChangeMessageDict) -> List[Order]:
+    def __call__(self, order_change_message: OrderChangeMessage) -> List[Order]:
         if order_change_message.get("op", "") == "ocm":
             return self.update(order_change_message)
 
