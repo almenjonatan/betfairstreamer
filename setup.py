@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="betfairstreamer",
-    version="0.3.1",
+    version="0.4.0",
     author="Jonatan Almen",
     zip_safe=False,
     author_email="almen.jonatan@gmail.com",
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/almenjonatan/betfairstreamer.git",
-    packages=["betfairstreamer", "betfairstreamer.betfair", "betfairstreamer.cache"],
+    packages=["betfairstreamer", "betfairstreamer.betfair", "betfairstreamer.cache", "betfairstreamer.utils"],
     package_data={"betfairstreamer": ["py.typed"]},
     install_requires=[
         "betfairlightweight",

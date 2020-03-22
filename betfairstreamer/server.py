@@ -8,7 +8,6 @@ from typing import Any, Dict, Generator, List, Type, Union
 
 import attr
 import orjson
-from betfairlightweight import APIClient
 
 from betfairstreamer.betfair.enums import OP
 from betfairstreamer.betfair.models import (
@@ -116,33 +115,30 @@ class BetfairConnectionPool:
         self.poller.register(betfair_connection.connection, select.POLLIN)
         self.connections[betfair_connection.connection.fileno()] = betfair_connection
 
-    def read(self) -> Generator[List[bytes], None, None]:
+    def read(self) -> Generator[bytes, None, None]:
         events = self.poller.poll()
 
         for fd, e in events:
-            yield self.connections[fd].read()
+            for m in self.connections[fd].read():
+                yield m
 
+    def close(self) -> None:
+        for k, c in self.connections.items():
+            c.connection.shutdown(socket.SHUT_RDWR)
+            c.connection.close()
 
-@attr.s(auto_attribs=True)
-class FileStreamer:
-    path: str
+    @classmethod
+    def create_connection_pool(
+        cls,
+        subscription_messages: List[Union[MarketSubscriptionMessage, OrderSubscriptionMessage]],
+        session_token: str,
+        app_key: str,
+    ) -> BetfairConnectionPool:
+        connection_pool = cls()
 
-    def read(self) -> Generator[List[bytes], None, None]:
-        pass
-
-
-def create_connection_pool(
-    trading: APIClient,
-    subscription_messages: List[Union[MarketSubscriptionMessage, OrderSubscriptionMessage]],
-) -> BetfairConnectionPool:
-
-    connection_pool = BetfairConnectionPool()
-
-    for subscription_message in subscription_messages:
-        connection_pool.add_connection(
-            BetfairConnection.create_connection(
-                subscription_message, trading.session_token, trading.app_key
+        for subscription_message in subscription_messages:
+            connection_pool.add_connection(
+                BetfairConnection.create_connection(subscription_message, session_token, app_key)
             )
-        )
 
-    return connection_pool
+        return connection_pool

@@ -55,7 +55,6 @@ def localize_betfair_date(betfair_datetime: datetime) -> datetime:
 
 
 def localize_betfair_date(betfair_datetime: Optional[datetime]) -> Optional[datetime]:
-
     if betfair_datetime is None:
         return None
 

@@ -40,7 +40,11 @@ from betfairstreamer.betfair.enums import (
     Side,
     StatusCode,
 )
-from betfairstreamer.utils import localize_betfair_date, parse_betfair_date, parse_utc_timestamp
+from betfairstreamer.utils.converters import (
+    localize_betfair_date,
+    parse_betfair_date,
+    parse_utc_timestamp,
+)
 
 
 class BetfairMessage(Protocol):

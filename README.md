@@ -1,45 +1,42 @@
 ## Usage
 
-### Subscribe and read from single market stream.
+### Subscribe to multiple streams (order, market)
 
 ```python
-market_stream = BetfairConnection.create_connection(
-    subscription_message, session_token=session_token, app_key=app_key
+import os
+
+from betfairlightweight import APIClient
+
+from betfairstreamer.betfair.models import (
+    OrderSubscriptionMessage,
+    MarketFilter,
+    MarketDataFilter,
+    MarketSubscriptionMessage,
 )
 
-while True:
-    update: =  market_stream.read() # List[bytes]
-    print(update)
-```
+from betfairstreamer.betfair.enums import Field
 
-### Subscribe to multiple streams (order, market), using network polling
+from betfairstreamer.cache.market_cache import MarketCache
 
-```python
-
-order_connection = BetfairConnection.create_connection(
-    order_subscription_message, session_token=session_token, app_key=app_key
+from betfairstreamer.server import (
+    BetfairConnection, 
+    BetfairConnectionPool
 )
 
-market_connection = BetfairConnection.create_connection(
-    market_subscription_message, session_token=session_token, app_key=app_key
-)
+username, password, app_key, cert_path = (os.environ["USERNAME"], 
+                                          os.environ["PASSWORD"], 
+                                          os.environ["APP_KEY"], 
+                                          os.environ["CERT_PATH"],
+                                         )
 
-connection_pool = BetfairConnectionPool()
-connection_pool.add(order_connection)
-connection_pool.add(market_connection)
+cert_path = os.path.abspath(cert_path)
 
-while True:
-    for update in connection_pool.read(): # Generator[List[bytes], None, None]  
-        print(update)
+trading: APIClient = APIClient(username, password, app_key, certs=cert_path, locale=os.environ["LOCALE"])
+trading.login()
 
-```
+session_token = trading.session_token
 
-### Create Subscriptions
-
-Id field is submitted back to you by betfair on every change message. Used to differentiate streams or group together. Betfair do not check
-for uniqueness.
-```python
-market_subscription_message = MarketSubscriptionMessage(
+market_subscription = MarketSubscriptionMessage(
     id=1,
     market_filter=MarketFilter(
         country_codes=["GB"], 
@@ -49,54 +46,43 @@ market_subscription_message = MarketSubscriptionMessage(
     market_data_filter=MarketDataFilter(
         ladder_levels=3,                        # WARNING! Ladder levels are fixed to 3 atm !!
         fields=[
-            Field.EX_MARKET_DEF, 
+            Field.EX_MARKET_DEF,
+            Field.EX_BEST_OFFERS,
+            Field.EX_LTP,
             Field.EX_BEST_OFFERS_DISP
         ]
     ),   
 )
 
 order_subscription =  OrderSubscriptionMessage(id=2)
-```
 
-### Session Token
-
-```python
-from betfairlightweight import APIClient
-
-trading: APIClient = APIClient(username, password, app_key, certs=cert_path)
-trading.login()
-
-session_token = trading.session_token
-```
-
-### Imports
-
-```python
-from betfairlightweight import APIClient
-
-from betfairstreamer.betfair.models import (
-    OrderSubscriptionMessage,
-    MarketFilter,
-    MarketDataFilter,
-    MarketSubscriptionMessage,
+connection_pool = BetfairConnectionPool.create_connection_pool(
+    subscription_messages=[market_subscription, order_subscription],
+    session_token=trading.session_token,
+    app_key=trading.app_key
 )
-from betfairstreamer.cache.market_cache import MarketCache
-from betfairstreamer.server import BetfairConnection, BetfairConnectionPool
 
+try:
+    while True:
+        for update in connection_pool.read():  
+            print(update)
+except Exception:
+    pass
+finally:
+    # "Must" be done if running within a jupyter notebook, else connections will be kept open.
+    connection_pool.close()
 ```
 
 ### Using market cache.
 Assuming you have received a list of stream updates into a list ( List[bytes] )
+
 ```python
-import orjson
-
-updates: List[bytes] = ...
-
 market_cache = MarketCache()
 
-for update in updates:
-    decoded_update = orjson.loads(update)
-    market_books: List[MarketBook] = market_cache(decoded_update)
+while True:
+    for update in connection_pool.read():  
+        decoded_update = orjson.loads(update)
+        market_books: List[MarketBook] = market_cache(decoded_update)
 ```
 
 
@@ -125,7 +111,7 @@ market_book.runner_book.best_display[1, 1, 0, :] # np.shape(...) == (2,)
 
 For more information checkout numpy slicing.
 
-### Performance
+### Benchmark
 
 #### Setup: Two processes (multiprocessing), one producer, one consumer. Hardware intel 4790K, 16Gb ram.
 

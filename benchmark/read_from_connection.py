@@ -3,11 +3,13 @@ import time
 from multiprocessing.context import Process
 
 from betfairstreamer.cache.market_cache import MarketCache
-from betfairstreamer.server import BetfairConnection
+from betfairstreamer.server import BetfairConnection, BetfairConnectionPool
 
 s1, s2 = socket.socketpair()
 
 connection = BetfairConnection(s2)
+connection_pool = BetfairConnectionPool()
+connection_pool.add_connection(connection)
 
 market_cache = MarketCache()
 
@@ -28,7 +30,7 @@ def start_reader():
 
     try:
         while True:
-            for m in connection.read():
+            for m in connection_pool.read():
                 count += 1
                 if count % 100000 == 0:
                     print(count)
