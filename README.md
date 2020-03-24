@@ -1,3 +1,8 @@
+## Installation
+
+```
+pip install betfairstreamer
+```
 ## Usage
 
 ### Subscribe to multiple streams (order, market)
@@ -74,7 +79,6 @@ finally:
 ```
 
 ### Using market cache.
-Assuming you have received a list of stream updates into a list ( List[bytes] )
 
 ```python
 market_cache = MarketCache()
@@ -88,7 +92,7 @@ while True:
 
 ### Marketbook
 
-Each marketbook is backed by numpy arrays. This makes it easy to take slices and do vectorized calculations.
+Each marketbook is backed by numpy arrays..
 
 The array contains four axes. [SORT_PRIORITY, SIDE (Back/Lay), LADDER_LEVEL, PRICE/SIZE]
 
