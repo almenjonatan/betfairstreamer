@@ -147,6 +147,7 @@ class MarketDefinitionDict(TypedDict, total=False):
     eachWayDivisor: Union[int, float]
     regulators: List[str]
     marketType: str
+    eventName: str
     marketBaseRate: Union[int, float]
     numberOfWinners: int
     countryCode: str

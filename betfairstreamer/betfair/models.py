@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Protocol, Type, Union, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Type, Union
 
 import attr
 import numpy as np
@@ -50,7 +50,7 @@ from betfairstreamer.utils.converters import (
 
 class BetfairMessage(Protocol):
     def to_dict(
-            self,
+        self,
     ) -> Union[
         AuthenticationMessageDict, OrderSubscriptionMessageDict, MarketSubscriptionMessageDict
     ]:
@@ -254,7 +254,7 @@ class KeyLineDefinition:
 
     @classmethod
     def from_betfair(
-            cls: Type[KeyLineDefinition], key_line_definition: Optional[KeyLineDefinitionDict]
+        cls: Type[KeyLineDefinition], key_line_definition: Optional[KeyLineDefinitionDict]
     ) -> Optional[KeyLineDefinition]:
         if key_line_definition is None:
             return None
@@ -270,7 +270,7 @@ class PriceLadderDefinition:
 
     @classmethod
     def from_betfair(
-            cls: Type[PriceLadderDefinition], price_ladder_definition: PriceLadderDefinitionDict
+        cls: Type[PriceLadderDefinition], price_ladder_definition: PriceLadderDefinitionDict
     ) -> PriceLadderDefinition:
         return cls(PriceLadderDefinitionType[price_ladder_definition["type"]])
 
@@ -296,13 +296,13 @@ class MarketDefinition:
     persistence_enabled: bool
     runners: List[RunnerDefinition]
     version: int
+    event_name: Optional[str]
     event_type_id: str
     complete: bool
     open_date: datetime
     bsp_reconciled: bool
     status: MarketStatus
-    price_ladder_definition: Optional[PriceLadderDefinition] = attr.ib(
-        converter=attr.converters.optional(PriceLadderDefinition.from_betfair))  # type: ignore
+    price_ladder_definition: Optional[PriceLadderDefinition] = attr.ib(converter=attr.converters.optional(PriceLadderDefinition.from_betfair))  # type: ignore
     country_code: Optional[str] = None
     market_time: Optional[datetime] = None
     suspend_time: Optional[datetime] = None
@@ -317,7 +317,7 @@ class MarketDefinition:
 
     @classmethod
     def from_betfair(
-            cls: Type[MarketDefinition], market_definition_dict: MarketDefinitionDict
+        cls: Type[MarketDefinition], market_definition_dict: MarketDefinitionDict
     ) -> MarketDefinition:
         return cls(
             venue=market_definition_dict.get("venue"),
@@ -333,6 +333,7 @@ class MarketDefinition:
             line_max_unit=market_definition_dict.get("lineMaxUnit"),
             in_play=market_definition_dict["inPlay"],
             bet_delay=market_definition_dict["betDelay"],
+            event_name=market_definition_dict["eventName"],
             bsp_market=market_definition_dict["bspMarket"],
             betting_type=BettingType[market_definition_dict["bettingType"]],
             number_of_active_runners=market_definition_dict["numberOfActiveRunners"],
@@ -460,21 +461,26 @@ def create_sort_priority_mapping(market_definition: MarketDefinition) -> Dict[in
     return {r.id: r.sort_priority for r in market_definition.runners}
 
 
-@attr.s(slots=True)
+@attr.s(slots=True, auto_attribs=True)
 class RunnerBook:
-    metadata = attr.ib(type=np.array)
-    sort_priority_mapping = attr.ib(type=Dict[int, int])
-    best_display = attr.ib(type=np.array, default=None)
-    best_offers = attr.ib(type=np.array, default=None)
-    price_ladder_b = attr.ib(type=Dict[int, Dict[float, float]], factory=lambda: defaultdict(dict))
-    price_ladder_l = attr.ib(type=Dict[int, Dict[float, float]], factory=lambda: defaultdict(dict))
+    metadata: np.array
+    sort_priority_mapping: Dict[int, int]
+    best_display: np.array = None
+    best_offers: np.array = None
 
-    full_price_ladder = attr.ib(type=Dict[Tuple[int, int], list], factory=lambda: defaultdict(list))
+    price_ladder_b: Dict[Union[int, float], Dict[float, float]] = attr.Factory(
+        lambda: defaultdict(dict)
+    )
+    price_ladder_l: Dict[Union[int, float], Dict[float, float]] = attr.Factory(
+        lambda: defaultdict(dict)
+    )
+
+    full_price_ladder: Dict[Any, Any] = attr.Factory(lambda: defaultdict(dict))
 
     def update(self, runner_change: List[RunnerChangeDict]) -> None:
 
         for r in runner_change:
-            sort_priority = self.sort_priority_mapping[r["id"]] - 1
+            sort_priority = int(self.sort_priority_mapping[r["id"]] - 1)
 
             bdatb = r.get("bdatb", [])
             bdatl = r.get("bdatl", [])
@@ -507,17 +513,21 @@ class RunnerBook:
 
             for a in atl:
                 if a[1] == 0:
-                    self.price_ladder_l[sort_priority].pop(a[0], None)
+                    self.price_ladder_l[sort_priority].pop(int(a[0]), None)
                 else:
                     self.price_ladder_l[sort_priority][a[0]] = a[1]
-                    self.full_price_ladder[(sort_priority,  1)] = sorted(self.price_ladder_l[sort_priority].items())
+                    self.full_price_ladder[sort_priority][1] = sorted(
+                        self.price_ladder_l[sort_priority].items()
+                    )
 
             for b in atb:
                 if b[1] == 0:
-                    self.price_ladder_b[sort_priority].pop(b[0], None)
+                    self.price_ladder_b[sort_priority].pop(int(b[0]), None)
                 else:
                     self.price_ladder_b[sort_priority][b[0]] = b[1]
-                    self.full_price_ladder[(sort_priority, 0)] = sorted(self.price_ladder_b[sort_priority].items(), reverse=True)
+                    self.full_price_ladder[sort_priority][0] = sorted(
+                        self.price_ladder_b[sort_priority].items(), reverse=True
+                    )
 
             if "ltp" in r:
                 self.metadata[sort_priority, 0] = r.get("ltp")
