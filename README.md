@@ -78,7 +78,7 @@ finally:
     connection_pool.close()
 ```
 
-### Using market cache.
+### Market cache
 
 ```python
 market_cache = MarketCache()
@@ -87,6 +87,21 @@ while True:
     for update in connection_pool.read():  
         decoded_update = orjson.loads(update)
         market_books: List[MarketBook] = market_cache(decoded_update)
+```
+
+### Order cache
+
+```python
+# If we do not care about completed orders.
+order_cache = OrderCache()
+
+# If we want to get our completed order (EXECUTION_COMPLETE) we have have to fetch them from
+# betfair rest api. 
+trading # type: APIClient
+
+current_orders = trading.betting.list_current_orders()
+
+order_cache = OrderCache.from_betfair(current_orders)  
 ```
 
 
@@ -112,12 +127,26 @@ market_book.runner_book.best_offers[1, 1, 0, :] # np.shape(...) == (2,)
 market_book.runner_book.best_display[0, 0, 0, 0] # scalar value
 market_book.runner_book.best_display[1, 1, 0, :] # np.shape(...) == (2,)
 ```
-
 For more information checkout numpy slicing.
+
+### Historical Data
+market_cache and order_cache takes a single (dict) update and updates it respective cache and returns the market_books that were supplied in the update.
+
+```python
+f = open("stream_data_file", "r")
+
+stream_updates = f.readlines()
+
+for stream_update in stream_updates:
+    market_books = market_cache(stream_update)
+    order_books = order_cache(stream_udpate)
+```
+
+
 
 ### Benchmark
 
-#### Setup: Two processes (multiprocessing), one producer, one consumer. Hardware intel 4790K, 16Gb ram.
+#### Setup: Two processes (multiprocessing), one producer, one consumer. Hardware intel 8550U, 16Gb ram.
 
 Read from socket > 100Mb/s  
 
