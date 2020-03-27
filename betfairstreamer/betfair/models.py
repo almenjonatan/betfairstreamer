@@ -512,24 +512,24 @@ class RunnerBook:
                 self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
 
             for a in atl:
-                if a[1] == 0:
+                if a[1] == 0.0:
                     self.price_ladder_l[sort_priority].pop(a[0], None)
                 else:
                     self.price_ladder_l[sort_priority][a[0]] = a[1]
 
-            self.full_price_ladder[sort_priority][1] = sorted(self.price_ladder_l[sort_priority].items(), reverse=True)
+            self.full_price_ladder[sort_priority][1] = sorted(
+                self.price_ladder_l[sort_priority].items()
+            )
 
             for b in atb:
-                if b[1] == 0:
+                if b[1] == 0.0:
                     self.price_ladder_b[sort_priority].pop(b[0], None)
                 else:
                     self.price_ladder_b[sort_priority][b[0]] = b[1]
 
-            self.full_price_ladder[sort_priority][0] = sorted(self.price_ladder_b[sort_priority].items())
-
-            # if self.full_price_ladder[sort_priority][0] and self.full_price_ladder[sort_priority][1]:
-            #     if not self.full_price_ladder[sort_priority][1][0][0] >= self.full_price_ladder[sort_priority][0][0][0]:
-            #         raise ValueError((self.full_price_ladder[sort_priority][1], self.full_price_ladder[sort_priority][0]))
+            self.full_price_ladder[sort_priority][0] = sorted(
+                self.price_ladder_b[sort_priority].items(), reverse=True
+            )
 
             if "ltp" in r:
                 self.metadata[sort_priority, 0] = r.get("ltp")
