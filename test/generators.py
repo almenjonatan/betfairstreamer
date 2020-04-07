@@ -4,8 +4,7 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis.strategies import composite
 
-from betfairstreamer.betfair.definitions import MarketDefinitionDict
-from betfairstreamer.betfair.enums import RunnerStatus
+from betfairstreamer.betfair_api import RunnerStatus, BetfairMarketDefinition
 
 
 @composite
@@ -37,7 +36,7 @@ def generate_runner_definitions(draw, number_of_runners):
 
 
 @composite
-def generate_market_definition_from_prev_version(draw, mdf: MarketDefinitionDict):
+def generate_market_definition_from_prev_version(draw, mdf: BetfairMarketDefinition):
     return draw(st.fixed_dictionaries({
         "bspMarket": st.just(mdf["bspMarket"]),
         "turnInPlayEnabled": st.just(mdf["turnInPlayEnabled"]),
@@ -70,7 +69,7 @@ def generate_market_definition_from_prev_version(draw, mdf: MarketDefinitionDict
 
 
 @composite
-def market_definition(draw) -> MarketDefinitionDict:
+def market_definition(draw) -> BetfairMarketDefinition:
     number_of_runners = draw(st.integers(1, 20))
 
     runner_definitions = draw(generate_runner_definitions(number_of_runners))
@@ -111,7 +110,7 @@ def market_definition(draw) -> MarketDefinitionDict:
 
 
 @composite
-def generate_single_market_update(draw, market_id: str, prev_market_definition: MarketDefinitionDict):
+def generate_single_market_update(draw, market_id: str, prev_market_definition: BetfairMarketDefinition):
     market_update = draw(st.fixed_dictionaries({
         "id": st.just(market_id),
         "marketDefinition": st.one_of(st.none(), generate_market_definition_from_prev_version(prev_market_definition))
@@ -170,7 +169,7 @@ def initial_market_change_message(draw):
             {
                 "id": market_id,
                 "marketDefinition": mdf,
-                "rc": draw(runner_change_messages(selection_ids=[r["id"] for r in mdf["runners"]])),
+                "rc": draw(generate_runner_change(selection_ids=[r["id"] for r in mdf["runners"]])),
             }
         ]
 

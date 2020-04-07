@@ -1,154 +1,152 @@
+# Betfairstreamer
+
+What this library provides
+
+* Run single or multiple streams simultaneously (single threaded)
+* Market cache and order cache, these provide abstractions over the betfairstream
+* Using numpy arrays to slicing markets selections.
+
+## Usage
+
+```
+connection_pool = BetfairConnectionPool.create_connection_pool(
+    subscription_messages=create_subscriptions(), session_token=session_token, app_key=app_key,
+)
+
+market_cache = MarketCache()
+order_cache = OrderCache()
+
+for update in connection_pool.read():
+    update = orjson.loads(update)
+
+    market_updates = market_cache(update)
+    order_updates = order_cache(update)
+
+    for market_book in market_updates:
+        print(
+            market_book.market_id,
+            market_book.market_definition["runners"][0]["id"],
+            market_book.market_definition["runners"][0]["sortPriority"],
+            round(time.time() - market_cache.publish_time / 1000, 2),
+            market_book.best_display[0, 0, 0, :],
+        )
+
+    for order in order_updates:
+        print(order)
+```
 ## Installation
 
 ```
 pip install betfairstreamer
 ```
-## Usage
-
-### Subscribe to multiple streams (order, market)
-
-```python
-import os
-
-from betfairlightweight import APIClient
-
-from betfairstreamer.betfair.models import (
-    OrderSubscriptionMessage,
-    MarketFilter,
-    MarketDataFilter,
-    MarketSubscriptionMessage,
-)
-
-from betfairstreamer.betfair.enums import Field
-
-from betfairstreamer.cache.market_cache import MarketCache
-
-from betfairstreamer.server import (
-    BetfairConnection, 
-    BetfairConnectionPool
-)
-
-username, password, app_key, cert_path = (os.environ["USERNAME"], 
-                                          os.environ["PASSWORD"], 
-                                          os.environ["APP_KEY"], 
-                                          os.environ["CERT_PATH"],
-                                         )
-
-cert_path = os.path.abspath(cert_path)
-
-trading: APIClient = APIClient(username, password, app_key, certs=cert_path, locale=os.environ["LOCALE"])
-trading.login()
-
-session_token = trading.session_token
-
-market_subscription = MarketSubscriptionMessage(
-    id=1,
-    market_filter=MarketFilter(
-        country_codes=["GB"], 
-        event_type_ids=["1"], 
-        market_types=["MATCH_ODDS"]
-    ),
-    market_data_filter=MarketDataFilter(
-        ladder_levels=3,                        # WARNING! Ladder levels are fixed to 3 atm !!
-        fields=[
-            Field.EX_MARKET_DEF,
-            Field.EX_BEST_OFFERS,
-            Field.EX_LTP,
-            Field.EX_BEST_OFFERS_DISP
-        ]
-    ),   
-)
-
-order_subscription =  OrderSubscriptionMessage(id=2)
-
-connection_pool = BetfairConnectionPool.create_connection_pool(
-    subscription_messages=[market_subscription, order_subscription],
-    session_token=trading.session_token,
-    app_key=trading.app_key
-)
-
-try:
-    while True:
-        for update in connection_pool.read():  
-            print(update)
-except Exception:
-    pass
-finally:
-    # "Must" be done if running within a jupyter notebook, else connections will be kept open.
-    connection_pool.close()
-```
-
-### Market cache
-
-```python
-market_cache = MarketCache()
-
-while True:
-    for update in connection_pool.read():  
-        decoded_update = orjson.loads(update)
-        market_books: List[MarketBook] = market_cache(decoded_update)
-```
-
-### Order cache
-
-```python
-# If we do not care about completed orders.
-order_cache = OrderCache()
-
-# If we want to get our completed order (EXECUTION_COMPLETE) we have have to fetch them from
-# betfair rest api. 
-trading # type: APIClient
-
-current_orders = trading.betting.list_current_orders()
-
-order_cache = OrderCache.from_betfair(current_orders)  
-```
-
-
-### Marketbook
-
-Each marketbook is backed by numpy arrays..
-
-The array contains four axes. [SORT_PRIORITY, SIDE (Back/Lay), LADDER_LEVEL, PRICE/SIZE]
-
-```python
-market_book: MarketBook
-
-##  best_offers is populated if you are using Field.EX_BEST_OFFERS
-
-### Access price on first selection on side back and on first ladder level
-market_book.runner_book.best_offers[0, 0, 0, 0] # scalar value
-
-### Access price and size on second selection side lay,  first ladder level
-market_book.runner_book.best_offers[1, 1, 0, :] # np.shape(...) == (2,)
-
-##  using Field.Field.EX_BEST_OFFERS_DISP, populate best_display (virtualised prices/ what betfair homepage display) 
-
-market_book.runner_book.best_display[0, 0, 0, 0] # scalar value
-market_book.runner_book.best_display[1, 1, 0, :] # np.shape(...) == (2,)
-```
-For more information checkout numpy slicing.
-
-### Historical Data
-market_cache and order_cache takes a single (dict) update and updates it respective cache and returns the market_books that were supplied in the update.
-
-```python
-f = open("stream_data_file", "r")
-
-stream_updates = f.readlines()
-
-for stream_update in stream_updates:
-    market_books = market_cache(stream_update)
-    order_books = order_cache(stream_udpate)
-```
-
 
 
 ### Benchmark
 
-#### Setup: Two processes (multiprocessing), one producer, one consumer. Hardware intel 8550U, 16Gb ram.
 
-Read from socket > 100Mb/s  
+### Full Example
 
-Read from socket and using marketcache > 30k updates/s
+```python
+import logging
+import os
+import time
 
+import orjson
+from betfairlightweight import APIClient
+
+from betfairstreamer.betfair_api import (
+    BetfairMarketSubscriptionMessage,
+    BetfairMarketFilter,
+    BetfairMarketDataFilter,
+    OP,
+    BetfairOrderSubscriptionMessage,
+)
+from betfairstreamer.cache import MarketCache, OrderCache
+from betfairstreamer.stream import BetfairConnectionPool
+
+logging.basicConfig(level=logging.INFO)
+
+
+def create_subscriptions():
+    market_subscription = BetfairMarketSubscriptionMessage(
+        id=1,
+        op=OP.marketSubscription.value,
+        marketFilter=BetfairMarketFilter(eventTypeIds=["7"], marketTypes=["WIN"]),
+        marketDataFilter=BetfairMarketDataFilter(
+            ladderLevels=3,  # WARNING! Ladder levels are fixed to 3 atm !!
+            fields=[
+                "EX_MARKET_DEF",
+                "EX_BEST_OFFERS",
+                "EX_LTP",
+                "EX_BEST_OFFERS_DISP",
+                "EX_ALL_OFFERS",
+            ],
+        ),
+    )
+
+    order_subscription = BetfairOrderSubscriptionMessage(id=2, op=OP.orderSubscription.value)
+
+    return [market_subscription, order_subscription]
+
+
+def get_app_key_session_token():
+    username, password, app_key, cert_path = (
+        os.environ["USERNAME"],
+        os.environ["PASSWORD"],
+        os.environ["APP_KEY"],
+        os.environ["CERT_PATH"],
+    )
+
+    cert_path = os.path.abspath(cert_path)
+
+    trading: APIClient = APIClient(
+        username, password, app_key, certs=cert_path, locale=os.environ["LOCALE"]
+    )
+    trading.login()
+
+    return trading.app_key, trading.session_token
+
+
+app_key, session_token = get_app_key_session_token()
+
+connection_pool = BetfairConnectionPool.create_connection_pool(
+    subscription_messages=create_subscriptions(), session_token=session_token, app_key=app_key,
+)
+
+market_cache = MarketCache()
+order_cache = OrderCache()
+
+for update in connection_pool.read():
+    update = orjson.loads(update)
+
+    market_updates = market_cache(update)
+    order_updates = order_cache(update)
+
+    for market_book in market_updates:
+        print(
+            market_book.market_id,
+            market_book.market_definition["runners"][0]["id"],
+            market_book.market_definition["runners"][0]["sortPriority"],
+            round(time.time() - market_cache.publish_time / 1000, 2),
+            market_book.best_display[0, 0, 0, :],
+        )
+
+    for order in order_updates:
+        print(order)
+
+```
+
+
+## Benchmark
+```Benchmark
+Setup: Two processes, one sending betfair stream messages , one receiving.
+
+Hardware: I7 8550U, 16GB ram
+
+Results: 
+ * Using a market cache it can read around 25k messages/second
+ * Without market cache >> 100 Mb/s
+
+```
+
+       

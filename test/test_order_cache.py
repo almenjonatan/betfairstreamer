@@ -1,9 +1,8 @@
 import orjson
 from betfairlightweight.resources import CurrentOrders
-from hypothesis import note, settings
 
-from betfairstreamer.betfair.enums import Side
-from betfairstreamer.cache.order_cache import OrderCache
+from betfairstreamer.betfair_api import Side
+from betfairstreamer.cache import OrderCache
 
 
 def test_insert_order():
@@ -378,7 +377,7 @@ def test_list_current_orders_insert():
         b'"sm":0,"sr":100,"sl":0,"sc":0,"sv":0,"rac":"","rc":"REG_SWE","rfo":"2","rfs":""}],"mb":[[3.2,100]]}]}]} '
     ]
 
-    order_cache = OrderCache.from_betfair(current_orders)
+    order_cache = OrderCache.from_betfairlightweight(current_orders)
 
     updates = order_cache.update(orjson.loads(su[0]))
 
@@ -439,7 +438,7 @@ def test_order_on_selection():
         "moreAvailable": False,
     }
 
-    order_cache = OrderCache.from_betfair(CurrentOrders(**co))
+    order_cache = OrderCache.from_betfairlightweight(CurrentOrders(**co))
 
     assert (
             len(
@@ -479,7 +478,7 @@ def test_out_of_band_order():
         "moreAvailable": False,
     }
 
-    order_cache = OrderCache.from_betfair(CurrentOrders(**co))
+    order_cache = OrderCache.from_betfairlightweight(CurrentOrders(**co))
 
     o = {
         "op": "ocm",

@@ -4,11 +4,45 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import attr
-from betfairlightweight.resources.bettingresources import CurrentOrders
+from betfairlightweight.resources import CurrentOrders
 
-from betfairstreamer.betfair.definitions import OrderChangeMessage
-from betfairstreamer.betfair.enums import Side
-from betfairstreamer.betfair.models import Order
+from betfairstreamer.betfair_api import BetfairMarketChangeMessage, BetfairOrderChangeMessage, Side
+from betfairstreamer.models import MarketBook, Order
+
+
+@attr.s
+class MarketCache:
+    market_books = attr.ib(type=Dict[str, MarketBook], factory=dict)
+    publish_time = attr.ib(type=int, default=0)
+
+    def update(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
+
+        updated_market_books = []
+
+        self.publish_time = stream_update["pt"]
+
+        for market_update in stream_update.get("mc", []):
+
+            market_book = self.market_books.get(market_update["id"])
+
+            if not market_book:
+                market_book = MarketBook.create_new_market_book(market_update)
+            elif market_update.get("img", False):
+                market_book = MarketBook.create_new_market_book(market_update)
+
+            market_book.update_runners(market_update.get("rc", []))
+            self.market_books[market_book.market_id] = market_book
+
+            updated_market_books.append(market_book)
+
+        return updated_market_books
+
+    def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
+
+        if stream_update.get("op", "") == "mcm":
+            return self.update(stream_update)
+
+        return []
 
 
 @attr.s(slots=True, weakref_slot=False)
@@ -37,15 +71,13 @@ class OrderCache:
 
     latest_order = attr.ib(type=Dict[Tuple[str, int, Side], Order], factory=dict)
 
-    def update(self, order_change_message: OrderChangeMessage) -> List[Order]:
+    def update(self, order_change_message: BetfairOrderChangeMessage) -> List[Order]:
         updated_orders = []
 
         for m in order_change_message.get("oc", []):
             for s in m.get("orc", []):
                 for o in s.get("uo", []):
-                    updated_orders.append(
-                        self.update_order(Order.from_betfair_stream_api(m["id"], s["id"], o))
-                    )
+                    updated_orders.append(self.update_order(Order.from_stream(m["id"], s["id"], o)))
 
         return updated_orders
 
@@ -123,17 +155,17 @@ class OrderCache:
 
         return round(back_bets - lay_bets)
 
-    def __call__(self, order_change_message: OrderChangeMessage) -> List[Order]:
+    def __call__(self, order_change_message: BetfairOrderChangeMessage) -> List[Order]:
         if order_change_message.get("op", "") == "ocm":
             return self.update(order_change_message)
 
         return []
 
     @classmethod
-    def from_betfair(cls, current_orders: CurrentOrders) -> OrderCache:
+    def from_betfairlightweight(cls, current_orders: CurrentOrders) -> OrderCache:
         oc = cls()
 
         for o in current_orders.orders:
-            oc.update_order(Order.from_betfair_rest_api(o))
+            oc.update_order(Order.from_betfairlightweight(o))
 
         return oc

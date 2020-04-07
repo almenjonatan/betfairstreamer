@@ -2,38 +2,28 @@ import socket
 import time
 from multiprocessing.context import Process
 
-from betfairstreamer.cache.market_cache import MarketCache
-from betfairstreamer.server import BetfairConnection, BetfairConnectionPool
+import orjson
 
-s1, s2 = socket.socketpair()
-
-connection = BetfairConnection(s2)
-connection_pool = BetfairConnectionPool()
-connection_pool.add_connection(connection)
-
-market_cache = MarketCache()
+from betfairstreamer.cache import MarketCache
+from betfairstreamer.stream import BetfairConnection, BetfairConnectionPool
 
 
-def start_server(stream_data):
-    print("Sent bytes")
-
-    for r in stream_data:
-        s1.send(r)
+def sender():
+    s1.sendall(stream_data)
 
     s1.shutdown(socket.SHUT_RDWR)
     s1.close()
-    print("Socket closed")
 
 
-def start_reader():
+def reader():
     count = 0
 
     try:
-        while True:
-            for m in connection_pool.read():
-                count += 1
-                if count % 100000 == 0:
-                    print(count)
+        for m in connection_pool.read():
+            market_cache(orjson.loads(m))
+            count += 1
+            if count % 100000 == 0:
+                print(count)
 
     except ConnectionError:
         pass
@@ -44,14 +34,22 @@ if __name__ == "__main__":
 
     multiprocessing.set_start_method('fork')
 
-    f = open("data.bin", "rb")
-    buffer = f.read().splitlines(keepends=True)[:-1]
+    s1, s2 = socket.socketpair()
 
-    p1 = Process(target=start_server, args=(buffer,))
+    connection = BetfairConnection(s2)
+    connection_pool = BetfairConnectionPool()
+    connection_pool.add_connection(connection)
+
+    stream_data = open("stream_data.bin", "rb").read()
+
+    market_cache = MarketCache()
+
+    p1 = Process(target=sender)
     p1.start()
 
     t0 = time.perf_counter()
-    p2 = Process(target=start_reader)
+
+    p2 = Process(target=reader)
     p2.start()
     p2.join()
 

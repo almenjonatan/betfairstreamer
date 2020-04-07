@@ -9,22 +9,23 @@ from typing import Any, Dict, Generator, List, Type, Union
 import attr
 import orjson
 
-from betfairstreamer.betfair.enums import OP
-from betfairstreamer.betfair.models import (
-    AuthenticationMessage,
-    BetfairMessage,
-    ConnectionMessage,
-    MarketSubscriptionMessage,
-    OrderSubscriptionMessage,
-    StatusMessage,
+from betfairstreamer.betfair_api import (
+    OP,
+    BetfairAuthenticationMessage,
+    BetfairMarketSubscriptionMessage,
+    BetfairOrderSubscriptionMessage,
 )
+
+BetfairMessage = Union[
+    BetfairAuthenticationMessage, BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage,
+]
 
 
 def encode(msg: BetfairMessage) -> bytes:
-    return orjson.dumps(msg.to_dict()) + b"\r\n"
+    return orjson.dumps(msg) + b"\r\n"
 
 
-def decode(msg: bytes) -> Any:
+def decode(msg: bytes) -> Dict[Any, Any]:
     return orjson.loads(msg)
 
 
@@ -82,17 +83,19 @@ class BetfairConnection:
     @classmethod
     def create_connection(
         cls: Type[BetfairConnection],
-        subscription_message: Union[MarketSubscriptionMessage, OrderSubscriptionMessage],
+        subscription_message: Union[
+            BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage
+        ],
         session_token: str,
         app_key: str,
         cert_path: str = "./certs",
     ) -> BetfairConnection:
 
-        auth_message = AuthenticationMessage(
-            op=OP.authentication,
-            id=subscription_message.id,
+        auth_message = BetfairAuthenticationMessage(
+            op=OP.authentication.value,
+            id=subscription_message["id"],
             session=session_token,
-            app_key=app_key,
+            appKey=app_key,
         )
 
         betfair_ssl_socket = create_betfair_socket(cert_path)
@@ -100,8 +103,9 @@ class BetfairConnection:
         betfair_ssl_socket.sendall(encode(auth_message))
         betfair_ssl_socket.sendall(encode(subscription_message))
 
-        logging.info(ConnectionMessage.from_betfair(decode(betfair_ssl_socket.recv(4096))))
-        logging.info(StatusMessage.from_betfair(decode(betfair_ssl_socket.recv(4096))))
+        logging.info(decode(betfair_ssl_socket.recv(4096)))
+        logging.info(decode(betfair_ssl_socket.recv(4096)))
+        logging.info(decode(betfair_ssl_socket.recv(4096)))
 
         return cls(betfair_ssl_socket)
 
@@ -116,11 +120,12 @@ class BetfairConnectionPool:
         self.connections[betfair_connection.connection.fileno()] = betfair_connection
 
     def read(self) -> Generator[bytes, None, None]:
-        events = self.poller.poll()
+        while True:
+            events = self.poller.poll()
 
-        for fd, e in events:
-            for m in self.connections[fd].read():
-                yield m
+            for fd, e in events:
+                for m in self.connections[fd].read():
+                    yield m
 
     def close(self) -> None:
         for k, c in self.connections.items():
@@ -130,7 +135,9 @@ class BetfairConnectionPool:
     @classmethod
     def create_connection_pool(
         cls,
-        subscription_messages: List[Union[MarketSubscriptionMessage, OrderSubscriptionMessage]],
+        subscription_messages: List[
+            Union[BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage]
+        ],
         session_token: str,
         app_key: str,
     ) -> BetfairConnectionPool:

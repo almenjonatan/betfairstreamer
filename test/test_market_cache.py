@@ -1,12 +1,12 @@
 import hypothesis.strategies as st
 from hypothesis import given
 
-from betfairstreamer.betfair.definitions import MarketDefinitionDict
+from betfairstreamer.betfair_api import BetfairMarketDefinition
 from test.generators import market_definition, generate_market_definition_from_prev_version
 
 
 @given(st.data(), market_definition())
-def test_market_definition_generator(data, mdf: MarketDefinitionDict):
+def test_market_definition_generator(data, mdf: BetfairMarketDefinition):
     prev_runner_sort = 0
 
     md2 = data.draw(generate_market_definition_from_prev_version(mdf))
