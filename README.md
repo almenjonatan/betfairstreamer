@@ -40,10 +40,6 @@ for update in connection_pool.read():
 pip install betfairstreamer
 ```
 
-
-### Benchmark
-
-
 ### Full Example
 
 ```python
