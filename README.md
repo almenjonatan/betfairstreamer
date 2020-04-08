@@ -8,7 +8,7 @@ What this library provides
 
 ## Usage
 
-```
+```python
 connection_pool = BetfairConnectionPool.create_connection_pool(
     subscription_messages=create_subscriptions(), session_token=session_token, app_key=app_key,
 )
@@ -55,24 +55,20 @@ import orjson
 from betfairlightweight import APIClient
 
 from betfairstreamer.betfair_api import (
-    BetfairMarketSubscriptionMessage,
     BetfairMarketFilter,
     BetfairMarketDataFilter,
-    OP,
-    BetfairOrderSubscriptionMessage,
 )
 from betfairstreamer.cache import MarketCache, OrderCache
 from betfairstreamer.stream import BetfairConnectionPool
+from betfairstreamer.utils import create_market_subscription, create_order_subscription
 
 logging.basicConfig(level=logging.INFO)
 
 
 def create_subscriptions():
-    market_subscription = BetfairMarketSubscriptionMessage(
-        id=1,
-        op=OP.marketSubscription.value,
-        marketFilter=BetfairMarketFilter(eventTypeIds=["7"], marketTypes=["WIN"]),
-        marketDataFilter=BetfairMarketDataFilter(
+    market_subscription = create_market_subscription(
+        market_filter=BetfairMarketFilter(eventTypeIds=["7"], marketTypes=["WIN"]),
+        market_data_filter=BetfairMarketDataFilter(
             ladderLevels=3,  # WARNING! Ladder levels are fixed to 3 atm !!
             fields=[
                 "EX_MARKET_DEF",
@@ -84,7 +80,7 @@ def create_subscriptions():
         ),
     )
 
-    order_subscription = BetfairOrderSubscriptionMessage(id=2, op=OP.orderSubscription.value)
+    order_subscription = create_order_subscription()
 
     return [market_subscription, order_subscription]
 
@@ -107,32 +103,37 @@ def get_app_key_session_token():
     return trading.app_key, trading.session_token
 
 
-app_key, session_token = get_app_key_session_token()
+def start_app():
+    app_key, session_token = get_app_key_session_token()
 
-connection_pool = BetfairConnectionPool.create_connection_pool(
-    subscription_messages=create_subscriptions(), session_token=session_token, app_key=app_key,
-)
+    connection_pool = BetfairConnectionPool.create_connection_pool(
+        subscription_messages=create_subscriptions(),
+        session_token=session_token,
+        app_key=app_key,
+    )
 
-market_cache = MarketCache()
-order_cache = OrderCache()
+    market_cache = MarketCache()
+    order_cache = OrderCache()
 
-for update in connection_pool.read():
-    update = orjson.loads(update)
+    for update in connection_pool.read():
+        update = orjson.loads(update)
 
-    market_updates = market_cache(update)
-    order_updates = order_cache(update)
+        market_updates = market_cache(update)
+        order_updates = order_cache(update)
 
-    for market_book in market_updates:
-        print(
-            market_book.market_id,
-            market_book.market_definition["runners"][0]["id"],
-            market_book.market_definition["runners"][0]["sortPriority"],
-            round(time.time() - market_cache.publish_time / 1000, 2),
-            market_book.best_display[0, 0, 0, :],
-        )
+        for market_book in market_updates:
+            print(
+                market_book.market_id,
+                market_book.market_definition["runners"][0]["id"],
+                market_book.market_definition["runners"][0]["sortPriority"],
+                round(time.time() - market_cache.publish_time / 1000, 2),
+                market_book.best_display[0, 0, 0, :],
+            )
 
-    for order in order_updates:
-        print(order)
+        for order in order_updates:
+            print(order)
+
+start_app()
 
 ```
 
