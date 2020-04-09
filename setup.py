@@ -5,11 +5,11 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="betfairstreamer",
-    version="0.5.0",
+    version="0.5.1",
     author="Jonatan Almen",
     zip_safe=False,
     author_email="almen.jonatan@gmail.com",
-    description="Server for Exchange Stream API",
+    description="Betfair Exchange Stream API wrapper",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/almenjonatan/betfairstreamer.git",

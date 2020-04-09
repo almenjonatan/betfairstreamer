@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 import attr
 import numpy as np
@@ -110,6 +111,22 @@ class Order:
             regulator_auth_code=None,
             size_voided=order.size_voided,
         )
+
+    def serialize(self) -> Dict[Any, Any]:
+        out = {}
+        for k, v in attr.asdict(self).items():
+
+            if isinstance(v, Enum):
+                v = v.value
+
+            if isinstance(v, datetime):
+                v = v.isoformat()
+
+            camel_case_key = [word.title() for word in k.split("_")]
+            camel_case_key[0] = camel_case_key[0].lower()
+            out["".join(camel_case_key)] = v
+
+        return out
 
 
 def create_sort_priority_mapping(market_definition: BetfairMarketDefinition) -> Dict[int, int]:

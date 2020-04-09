@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from itertools import product
 from typing import List, Optional, Union, overload
 
 import betfairlightweight
@@ -15,7 +14,6 @@ from betfairstreamer.betfair_api import (
     BetfairOrderFilter,
     BetfairOrderSubscriptionMessage,
 )
-from betfairstreamer.definitions import BETFAIR_TICKS
 
 
 def fetch_market_ids(
@@ -120,18 +118,6 @@ def localize_betfair_date(betfair_datetime: Optional[datetime]) -> Optional[date
         return pytz.utc.localize(betfair_datetime)
     except Exception:
         return None
-
-
-tick_diff = {}
-
-for tick, l in zip(product(BETFAIR_TICKS, BETFAIR_TICKS), product(range(350), range(350))):
-    lower, upper = l
-    if upper - lower > 0:
-        tick_diff[tick] = upper - lower
-
-
-def get_tick_diff(lower: float, upper: float) -> int:
-    return tick_diff[(lower, upper)]
 
 
 def create_market_subscription(
