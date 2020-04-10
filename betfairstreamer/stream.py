@@ -4,7 +4,7 @@ import logging
 import select
 import socket
 import ssl
-from typing import Any, Dict, Generator, List, Type, Union
+from typing import Any, Dict, Generator, List, Union
 
 import attr
 import orjson
@@ -82,7 +82,7 @@ class BetfairConnection:
 
     @classmethod
     def create_connection(
-        cls: Type[BetfairConnection],
+        cls,
         subscription_message: Union[
             BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage
         ],
@@ -99,15 +99,17 @@ class BetfairConnection:
         )
 
         betfair_ssl_socket = create_betfair_socket(cert_path)
+        connection = cls(betfair_ssl_socket)
+
+        logging.info(connection.read()[0])
 
         betfair_ssl_socket.sendall(encode(auth_message))
+        logging.info(connection.read()[0])
+
         betfair_ssl_socket.sendall(encode(subscription_message))
+        logging.info(connection.read()[0])
 
-        logging.info(decode(betfair_ssl_socket.recv(4096)))
-        logging.info(decode(betfair_ssl_socket.recv(4096)))
-        logging.info(decode(betfair_ssl_socket.recv(4096)))
-
-        return cls(betfair_ssl_socket)
+        return connection
 
 
 @attr.s(auto_attribs=True)
