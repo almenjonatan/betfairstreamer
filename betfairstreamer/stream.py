@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import select
 import socket
 import ssl
-from typing import Any, Dict, Generator, List, Union
+from asyncio import StreamReader, StreamWriter
+from typing import Any, Dict, Generator, List, Tuple, Union
 
 import attr
 import orjson
@@ -29,11 +31,11 @@ def decode(msg: bytes) -> Dict[Any, Any]:
     return orjson.loads(msg)
 
 
-def create_betfair_socket(cert_path: str) -> socket.socket:
+def create_betfair_socket() -> socket.socket:
     hostname = "stream-api.betfair.com"
     port = 443
 
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, capath=cert_path)
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 
     betfair_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     betfair_ssl_socket = ssl_context.wrap_socket(betfair_socket)
@@ -43,21 +45,26 @@ def create_betfair_socket(cert_path: str) -> socket.socket:
     return betfair_ssl_socket
 
 
-@attr.s(auto_attribs=True)
-class BetfairConnection:
-    connection: socket.socket
-    buffer_size: int = 8192
-    crlf: bytes = b"\r\n"
-    buffer: bytes = b""
+async def create_async_socket() -> Tuple[StreamReader, StreamWriter]:
+    hostname = "stream-api.betfair.com"
+    port = 443
 
-    def read(self) -> List[bytes]:
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.check_hostname = False
 
-        part = self.connection.recv(self.buffer_size)
+    return await asyncio.open_connection(*(hostname, port), ssl=ssl_context)
+
+
+class Parser:
+    def __init__(self) -> None:
+        self.buffer = b""
+        self.crlf = b"\r\n"
+
+    def parse_message(self, part: bytes) -> List[bytes]:
+        messages = []
 
         if part == b"":
-            raise ConnectionError("Socket closed!")
-
-        messages = []
+            raise ConnectionError("Betfair closed connection.")
 
         if part[:1] == b"\n" and self.buffer[-1:] == b"\r":
             messages.append(self.buffer[:-1])
@@ -77,6 +84,56 @@ class BetfairConnection:
 
         return messages
 
+
+@attr.s(auto_attribs=True, slots=True)
+class BetfairAsyncConnection:
+    reader: StreamReader
+    writer: StreamWriter
+    parser: Parser = attr.Factory(Parser)
+
+    async def read(self) -> List[bytes]:
+        part = await self.reader.read(8192)
+        return self.parser.parse_message(part)
+
+    async def send(self, msg: BetfairMessage) -> None:
+        self.writer.write(encode(msg))
+        await self.writer.drain()
+
+    @classmethod
+    async def create_connection(
+        cls, subscription_message: BetfairMessage, session_token: str, app_key: str
+    ) -> BetfairAsyncConnection:
+        reader, writer = await create_async_socket()
+        connection = cls(reader=reader, writer=writer)
+
+        print(await connection.read())
+
+        auth_message = BetfairAuthenticationMessage(
+            op=OP.authentication.value,
+            id=subscription_message["id"],
+            session=session_token,
+            appKey=app_key,
+        )
+
+        await connection.send(auth_message)
+        print(await connection.read())
+
+        await connection.send(subscription_message)
+        print(await reader.readuntil(b"\r\n"))
+
+        return connection
+
+
+@attr.s(auto_attribs=True, slots=True)
+class BetfairConnection:
+    connection: socket.socket
+    buffer_size: int = 8192
+    parser: Parser = Parser()
+
+    def read(self) -> List[bytes]:
+        part = self.connection.recv(self.buffer_size)
+        return self.parser.parse_message(part)
+
     def send(self, betfair_msg: BetfairMessage) -> None:
         self.connection.sendall(encode(betfair_msg))
 
@@ -88,9 +145,7 @@ class BetfairConnection:
         ],
         session_token: str,
         app_key: str,
-        cert_path: str = "./certs",
     ) -> BetfairConnection:
-
         auth_message = BetfairAuthenticationMessage(
             op=OP.authentication.value,
             id=subscription_message["id"],
@@ -98,7 +153,7 @@ class BetfairConnection:
             appKey=app_key,
         )
 
-        betfair_ssl_socket = create_betfair_socket(cert_path)
+        betfair_ssl_socket = create_betfair_socket()
         connection = cls(betfair_ssl_socket)
 
         logging.info(connection.read()[0])
