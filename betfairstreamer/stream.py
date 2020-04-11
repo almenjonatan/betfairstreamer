@@ -128,7 +128,7 @@ class BetfairAsyncConnection:
 class BetfairConnection:
     connection: socket.socket
     buffer_size: int = 8192
-    parser: Parser = Parser()
+    parser: Parser = attr.Factory(Parser)
 
     def read(self) -> List[bytes]:
         part = self.connection.recv(self.buffer_size)
