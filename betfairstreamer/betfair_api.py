@@ -128,6 +128,26 @@ class BetfairPlaceInstruction(TypedDict, total=False):
     customerOrderRef: Optional[str]
 
 
+class BetfairPlaceOrder(TypedDict, total=False):
+    marketId: str
+    instructions: List[BetfairPlaceInstruction]
+    customerRef: str
+    marketVersion: float
+    customerStrategyRef: str
+    asynchronous: bool
+
+
+class BetfairCancelInstruction(TypedDict):
+    betId: str
+    sizeReduction: float
+
+
+class BetfairCancelOrder(TypedDict, total=False):
+    marketId: str
+    instructions: List[BetfairCancelInstruction]
+    customerRef: str
+
+
 class BetfairResponseMessage(TypedDict):
     op: str
     id: int
