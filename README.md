@@ -32,7 +32,7 @@ Create a virtual environment, needs python >= 3.8.0
 ```shell script
 python3.8 -m venv venv
 source venv/bin/activate
-pip install betfairstreamer==.5.3
+pip install betfairstreamer==0.5.3
 ```
 
 #### Create Application
