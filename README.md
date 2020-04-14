@@ -86,8 +86,7 @@ for update in connection_pool.read():
     order_updates = order_cache(update)
 
     for market_book in market_updates:
-        # From full price ladder take sortPriority one and two and
-        # only ladder levels having a size greater or equal to 2.0.
+        # From full price ladder take sortPriority one, select ladder levels having a size greater or equal to 2.0.
         maskB = market_book.full_price_ladder[0, 0, :, 1] >= 2.0
         maskL = market_book.full_price_ladder[0, 1, :, 1] >= 2.0
         # Marketbook price size index: [SortPriority, LAY/BACK, LadderLevel, Price/Size]
