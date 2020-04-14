@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="betfairstreamer",
-    version="0.5.2",
+    version="0.5.3",
     author="Jonatan Almen",
     zip_safe=False,
     author_email="almen.jonatan@gmail.com",
@@ -19,7 +19,6 @@ setuptools.setup(
         "betfairlightweight",
         "orjson",
         "numpy",
-        "pyzmq",
         "ciso8601",
         "attrs",
         "pytz",
