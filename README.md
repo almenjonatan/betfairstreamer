@@ -44,12 +44,9 @@ import time
 import numpy as np
 import orjson
 
-from betfairstreamer.betfair_api import (
-    BetfairMarketFilter,
-    BetfairMarketDataFilter,
-)
+from betfairstreamer.models import BetfairMarketFilter, BetfairMarketDataFilter
 from betfairstreamer.cache import MarketCache, OrderCache
-from betfairstreamer.stream import create_connection_pool
+from betfairstreamer.stream.stream import create_connection_pool
 from betfairstreamer.utils import create_market_subscription, create_order_subscription
 
 np.set_printoptions(precision=3)

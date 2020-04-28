@@ -1,7 +1,7 @@
 import hypothesis.strategies as st
 from hypothesis import given
 
-from betfairstreamer.betfair_api import BetfairMarketDefinition
+from betfairstreamer.models.betfair_api import BetfairMarketDefinition
 from test.generators import market_definition, generate_market_definition_from_prev_version
 
 

@@ -3,9 +3,9 @@ import socket
 import pytest
 import hypothesis.strategies as st
 
-from hypothesis import given, note, settings, reproduce_failure
+from hypothesis import given, note
 
-from betfairstreamer.stream import BetfairConnection
+from betfairstreamer.stream.betfair_connection import BetfairConnection
 from test.generators import generate_message
 
 

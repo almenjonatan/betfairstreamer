@@ -1,8 +1,8 @@
 import orjson
 from betfairlightweight.resources import CurrentOrders
 
-from betfairstreamer.betfair_api import Side
-from betfairstreamer.cache import OrderCache
+from betfairstreamer.models.betfair_api import Side
+from betfairstreamer.models.order_cache import OrderCache
 
 
 def test_insert_order():

@@ -6,70 +6,23 @@ from typing import Dict, List, Optional, Tuple
 import attr
 from betfairlightweight.resources import CurrentOrders
 
-from betfairstreamer.betfair_api import BetfairMarketChangeMessage, BetfairOrderChangeMessage, Side
-from betfairstreamer.models import MarketBook, Order
+from betfairstreamer.models.betfair_api import BetfairOrderChangeMessage, Side
+from betfairstreamer.models.order_book import Order
 
 
-@attr.s
-class MarketCache:
-    market_books = attr.ib(type=Dict[str, MarketBook], factory=dict)
-    publish_time = attr.ib(type=int, default=0)
-
-    def update(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
-
-        updated_market_books = []
-
-        self.publish_time = stream_update["pt"]
-
-        for market_update in stream_update.get("mc", []):
-
-            market_book = self.market_books.get(market_update["id"])
-
-            if not market_book:
-                market_book = MarketBook.create_new_market_book(market_update)
-            elif market_update.get("img", False):
-                market_book = MarketBook.create_new_market_book(market_update)
-
-            market_book.update_runners(market_update.get("rc", []))
-            self.market_books[market_book.market_id] = market_book
-
-            updated_market_books.append(market_book)
-
-        return updated_market_books
-
-    def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
-
-        if stream_update.get("op", "") == "mcm":
-            return self.update(stream_update)
-
-        return []
-
-
-@attr.s(slots=True, weakref_slot=False)
+@attr.s(auto_attribs=True, slots=True, weakref_slot=False)
 class OrderCache:
-    orders = attr.ib(type=Dict[str, Order], factory=dict)
+    orders: Dict[str, Order] = attr.Factory(dict)
 
-    size_matched = attr.ib(
-        type=Dict[Tuple[str, int, Side], float], factory=lambda: defaultdict(float)
-    )
-    size_cancelled = attr.ib(
-        type=Dict[Tuple[str, int, Side], float], factory=lambda: defaultdict(float)
-    )
-    size_voided = attr.ib(
-        type=Dict[Tuple[str, int, Side], float], factory=lambda: defaultdict(float)
-    )
-    size_remaining = attr.ib(
-        type=Dict[Tuple[str, int, Side], float], factory=lambda: defaultdict(float)
-    )
-    market_orders = attr.ib(
-        type=Dict[Tuple[str, int, Side], Dict[str, Order]], factory=lambda: defaultdict(dict)
-    )
+    size_matched: Dict[Tuple[str, int, Side], float] = attr.Factory(lambda: defaultdict(float))
+    size_cancelled: Dict[Tuple[str, int, Side], float] = attr.Factory(lambda: defaultdict(float))
+    size_voided: Dict[Tuple[str, int, Side], float] = attr.Factory(lambda: defaultdict(float))
+    size_remaining: Dict[Tuple[str, int, Side], float] = attr.Factory(lambda: defaultdict(float))
+    market_orders: Dict[Tuple[str, int, Side], Dict[str, Order]] = attr.Factory(lambda: defaultdict(dict))
 
-    orders_on_selection = attr.ib(
-        type=Dict[Tuple[str, int, Side], Dict[str, Order]], factory=lambda: defaultdict(dict)
-    )
+    orders_on_selection: Dict[Tuple[str, int, Side], Dict[str, Order]] = attr.Factory(lambda: defaultdict(dict))
 
-    latest_order = attr.ib(type=Dict[Tuple[str, int, Side], Order], factory=dict)
+    latest_order: Dict[Tuple[str, int, Side], Order] = attr.Factory(dict)
 
     def update(self, order_change_message: BetfairOrderChangeMessage) -> List[Order]:
         updated_orders = []
@@ -108,9 +61,7 @@ class OrderCache:
 
         return order
 
-    def get_orders_on_selection(
-        self, market_id: str, selection_id: int, side: Side
-    ) -> Dict[str, Order]:
+    def get_orders_on_selection(self, market_id: str, selection_id: int, side: Side) -> Dict[str, Order]:
         return self.orders_on_selection[(market_id, selection_id, side)]
 
     def get_size_matched(self, market_id: str, selection_id: int, side: Side) -> float:
@@ -143,10 +94,7 @@ class OrderCache:
         lay_bets_size_remaining = self.get_size_remaining(market_id, selection_id, Side.LAY)
 
         return round(
-            back_bets_size_matched
-            + back_bets_size_remaining
-            - lay_bets_size_remaining
-            - lay_bets_size_matched
+            back_bets_size_matched + back_bets_size_remaining - lay_bets_size_remaining - lay_bets_size_matched
         )
 
     def get_matched_balanced(self, market_id: str, selection_id: int) -> float:
@@ -156,10 +104,7 @@ class OrderCache:
         return round(back_bets - lay_bets)
 
     def __call__(self, order_change_message: BetfairOrderChangeMessage) -> List[Order]:
-        if order_change_message.get("op", "") == "ocm":
-            return self.update(order_change_message)
-
-        return []
+        return self.update(order_change_message)
 
     @classmethod
     def from_betfairlightweight(cls, current_orders: CurrentOrders) -> OrderCache:

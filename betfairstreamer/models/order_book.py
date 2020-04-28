@@ -2,26 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import attr
-import numpy as np
 from betfairlightweight.resources.bettingresources import CurrentOrder
 
-from betfairstreamer.betfair_api import (
-    BetfairMarketChange,
-    BetfairMarketDefinition,
-    BetfairOrder,
-    BetfairRunnerChange,
-    OrderStatus,
-    OrderType,
-    PersistenceType,
-    Side,
-)
-from betfairstreamer.definitions import BETFAIR_TICKS
+from betfairstreamer.models.betfair_api import BetfairOrder, OrderStatus, OrderType, PersistenceType, Side
 from betfairstreamer.utils import localize_betfair_date, parse_utc_timestamp
-
-FULL_PRICE_LADDER_INDEX = dict(zip(BETFAIR_TICKS, range(len(BETFAIR_TICKS))))
 
 
 @attr.s(slots=True, auto_attribs=True)
@@ -127,90 +114,3 @@ class Order:
             out["".join(camel_case_key)] = v
 
         return out
-
-
-def create_sort_priority_mapping(market_definition: BetfairMarketDefinition) -> Dict[int, int]:
-    return {r["id"]: r["sortPriority"] for r in market_definition["runners"]}
-
-
-@attr.s(slots=True, auto_attribs=True)
-class MarketBook:
-    market_id: str
-    market_definition: BetfairMarketDefinition
-    metadata: np.ndarray
-    sort_priority_mapping: Dict[int, int]
-    best_display: np.ndarray
-    best_offers: np.ndarray
-    full_price_ladder: np.ndarray
-
-    def update_runners(self, runner_change: List[BetfairRunnerChange]) -> None:
-        for r in runner_change:
-            sort_priority = int(self.sort_priority_mapping[r["id"]] - 1)
-
-            bdatb = r.get("bdatb", [])
-            bdatl = r.get("bdatl", [])
-
-            batb = r.get("batb", [])
-            batl = r.get("batl", [])
-
-            atb = r.get("atb", [])
-            atl = r.get("atl", [])
-
-            if bdatb:
-                new_values = np.array(bdatb)
-                bdatb_index = new_values[:, 0].astype(int)
-                self.best_display[sort_priority, 0, bdatb_index, :] = new_values[:, 1:]
-
-            if bdatl:
-                new_values = np.array(bdatl)
-                bdatl_index = new_values[:, 0].astype(int)
-                self.best_display[sort_priority, 1, bdatl_index, :] = new_values[:, 1:]
-
-            if batb:
-                new_values = np.array(batb)
-                batb_index = new_values[:, 0].astype(int)
-                self.best_offers[sort_priority, 0, batb_index, :] = new_values[:, 1:]
-
-            if batl:
-                new_values = np.array(batl)
-                batl_index = new_values[:, 0].astype(int)
-                self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
-
-            if atb:
-                indexes = [FULL_PRICE_LADDER_INDEX[u[0]] for u in atb]
-                self.full_price_ladder[sort_priority, 0, indexes, :] = np.array(atb)
-
-            if atl:
-                indexes = [FULL_PRICE_LADDER_INDEX[u[0]] for u in atl]
-                self.full_price_ladder[sort_priority, 1, indexes, :] = np.array(atl)
-
-            if "ltp" in r:
-                self.metadata[sort_priority, 0] = r.get("ltp")
-            if "tv" in r:
-                self.metadata[sort_priority, 1] = r.get("tv")
-
-    def update(self, market_change_message: BetfairMarketChange) -> None:
-
-        if market_change_message.get("marketDefinition"):
-            self.market_definition = market_change_message["marketDefinition"]
-
-        self.update_runners(market_change_message.get("rc", []))
-
-    @classmethod
-    def create_new_market_book(cls, market_change_message: BetfairMarketChange) -> MarketBook:
-
-        number_of_runners = len(market_change_message["marketDefinition"]["runners"])
-
-        market_book = cls(
-            market_id=market_change_message["id"],
-            best_display=-1 * np.ones(shape=(number_of_runners, 2, 3, 2)),
-            best_offers=-1 * np.ones(shape=(number_of_runners, 2, 3, 2)),
-            full_price_ladder=-1 * np.ones(shape=(number_of_runners, 2, 350, 2)),
-            metadata=np.zeros(shape=(number_of_runners, 2)),
-            sort_priority_mapping=create_sort_priority_mapping(
-                market_change_message["marketDefinition"]
-            ),
-            market_definition=market_change_message["marketDefinition"],
-        )
-
-        return market_book

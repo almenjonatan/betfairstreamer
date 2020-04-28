@@ -6,7 +6,7 @@ import ciso8601
 import pytz
 from betfairlightweight import APIClient
 
-from betfairstreamer.betfair_api import (
+from betfairstreamer.models.betfair_api import (
     OP,
     BetfairMarketDataFilter,
     BetfairMarketFilter,
@@ -16,16 +16,10 @@ from betfairstreamer.betfair_api import (
 )
 
 
-def fetch_market_ids(
-    trading: APIClient, competition_ids: List[int], market_types: List[str]
-) -> List[List[str]]:
-    f = betfairlightweight.filters.market_filter(
-        competition_ids=competition_ids, market_type_codes=market_types,
-    )
+def fetch_market_ids(trading: APIClient, competition_ids: List[int], market_types: List[str]) -> List[List[str]]:
+    f = betfairlightweight.filters.market_filter(competition_ids=competition_ids, market_type_codes=market_types)
 
-    market_catalogues = [
-        m.market_id for m in trading.betting.list_market_catalogue(filter=f, max_results=1000)
-    ]
+    market_catalogues = [m.market_id for m in trading.betting.list_market_catalogue(filter=f, max_results=1000)]
 
     return [market_catalogues[i : i + 200] for i in range(0, len(market_catalogues), 200)]
 
@@ -40,21 +34,12 @@ def create_subscriptions(
 
         market_data_filter = BetfairMarketDataFilter(
             ladderLevels=3,
-            fields=[
-                "EX_LTP",
-                "EX_MARKET_DEF",
-                "EX_BEST_OFFERS_DISP",
-                "EX_BEST_OFFERS",
-                "EX_TRADED_VOL",
-            ],
+            fields=["EX_LTP", "EX_MARKET_DEF", "EX_BEST_OFFERS_DISP", "EX_BEST_OFFERS", "EX_TRADED_VOL",],
         )
 
         subs.append(
             BetfairMarketSubscriptionMessage(
-                id=1,
-                op=OP.marketSubscription.value,
-                marketFilter=market_filter,
-                marketDataFilter=market_data_filter,
+                id=1, op=OP.marketSubscription.value, marketFilter=market_filter, marketDataFilter=market_data_filter,
             )
         )
 

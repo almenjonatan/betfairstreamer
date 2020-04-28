@@ -4,7 +4,7 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis.strategies import composite
 
-from betfairstreamer.betfair_api import RunnerStatus, BetfairMarketDefinition
+from betfairstreamer.models.betfair_api import RunnerStatus, BetfairMarketDefinition
 
 
 @composite

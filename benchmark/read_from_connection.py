@@ -5,7 +5,7 @@ from multiprocessing.context import Process
 import orjson
 
 from betfairstreamer.cache import MarketCache
-from betfairstreamer.stream import BetfairConnection, BetfairConnectionPool
+from betfairstreamer.stream.stream import BetfairConnection, BetfairConnectionPool
 
 
 def sender():
