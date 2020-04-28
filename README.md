@@ -11,7 +11,7 @@ What this library provides
 ## Installation
 
 ```
-pip install betfairstreamer==0.5.3
+pip install betfairstreamer==0.6.0
 ```
 
 ## Example
