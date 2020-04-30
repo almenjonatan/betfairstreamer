@@ -6,20 +6,29 @@ import socket
 from typing import Dict, Generator, List, Union
 
 import attr
+import zmq
 from betfairlightweight import APIClient
 
 from betfairstreamer.models.betfair_api import BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage
 from betfairstreamer.stream.betfair_connection import BetfairConnection
+from betfairstreamer.stream.protocols import Connection
 
 
 @attr.s(auto_attribs=True)
 class BetfairConnectionPool:
-    poller: select.poll = attr.ib(factory=select.poll)
-    connections: Dict[int, BetfairConnection] = attr.ib(factory=dict)
+    poller: zmq.Poller = attr.ib(factory=zmq.Poller)
+    connections: Dict[Union[int, zmq.Socket], Connection] = attr.ib(factory=dict)
 
-    def add_connection(self, betfair_connection: BetfairConnection) -> None:
-        self.poller.register(betfair_connection.connection, select.POLLIN)
-        self.connections[betfair_connection.connection.fileno()] = betfair_connection
+    def add_connection(self, connection: Connection) -> None:
+        self.poller.register(connection.get_socket(), select.POLLIN)
+
+        if isinstance(connection.get_socket(), socket.socket):
+            self.connections[connection.get_socket().fileno()] = connection
+
+        if isinstance(connection.get_socket(), zmq.Socket):
+            self.connections[connection.get_socket()] = connection
+
+        # print(self.connections)
 
     def read(self) -> Generator[bytes, None, None]:
         while True:
@@ -31,8 +40,8 @@ class BetfairConnectionPool:
 
     def close(self) -> None:
         for k, c in self.connections.items():
-            c.connection.shutdown(socket.SHUT_RDWR)
-            c.connection.close()
+            c.get_socket().shutdown(socket.SHUT_RDWR)
+            c.get_socket().close()
 
     @classmethod
     def create_connection_pool(

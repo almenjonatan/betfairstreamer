@@ -14,6 +14,7 @@ from betfairstreamer.models.betfair_api import (
     BetfairMarketSubscriptionMessage,
     BetfairOrderSubscriptionMessage,
 )
+from betfairstreamer.stream.protocols import Connection
 from betfairstreamer.stream.stream_parser import Parser
 
 BetfairMessage = Union[BetfairAuthenticationMessage, BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage]
@@ -42,7 +43,7 @@ def create_betfair_socket() -> socket.socket:
 
 
 @attr.s(auto_attribs=True, slots=True)
-class BetfairConnection:
+class BetfairConnection(Connection):
     connection: socket.socket
     buffer_size: int = 8192
     parser: Parser = attr.Factory(Parser)
@@ -54,6 +55,9 @@ class BetfairConnection:
             raise ConnectionError("Betfair closed connection.")
 
         return self.parser.parse_message(part)
+
+    def get_socket(self) -> socket.socket:
+        return self.connection
 
     def send(self, betfair_msg: BetfairMessage) -> None:
         self.connection.sendall(encode(betfair_msg))

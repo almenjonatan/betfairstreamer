@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from typing import List, Optional, Union, overload
 
@@ -103,6 +104,20 @@ def localize_betfair_date(betfair_datetime: Optional[datetime]) -> Optional[date
         return pytz.utc.localize(betfair_datetime)
     except Exception:
         return None
+
+
+def get_trading_instance_from_env() -> APIClient:
+    trading = APIClient(
+        username=os.environ["BETFAIR_USERNAME"],
+        password=os.environ["BETFAIR_PASSWORD"],
+        app_key=os.environ["BETFAIR_APP_KEY"],
+        locale=os.environ.get("LOCALE"),
+        certs=os.path.abspath(os.environ["BETFAIR_CERT_PATH"]),
+    )
+
+    trading.login()
+
+    return trading
 
 
 def create_market_subscription(
