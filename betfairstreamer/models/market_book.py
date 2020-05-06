@@ -425,8 +425,19 @@ class MarketBook:
 
     def update(self, market_change_message: BetfairMarketChange) -> None:
 
-        if market_change_message.get("marketDefinition"):
+        if market_definition := market_change_message.get("marketDefinition"):
+            old_sort_priority_mapping = self.sort_priority_mapping.copy()
+            new_sort_priority_mapping = create_sort_priority_mapping(market_definition)
+
+            k = [old_sort_priority_mapping[k] - 1 for k in new_sort_priority_mapping]
+
+            self.full_price_ladder[:] = self.full_price_ladder[k]
+            self.best_display[:] = self.best_display[k]
+            self.best_offers[:] = self.best_offers[k]
+
             self.market_definition = market_change_message["marketDefinition"]
+
+            self.sort_priority_mapping = new_sort_priority_mapping
 
         self.update_runners(market_change_message.get("rc", []))
 
@@ -437,9 +448,9 @@ class MarketBook:
 
         market_book = cls(
             market_id=market_change_message["id"],
-            best_display=-1 * np.ones(shape=(number_of_runners, 2, 3, 2)),
-            best_offers=-1 * np.ones(shape=(number_of_runners, 2, 3, 2)),
-            full_price_ladder=-1 * np.ones(shape=(number_of_runners, 2, 350, 2)),
+            best_display=-np.zeros(shape=(number_of_runners, 2, 3, 2)),
+            best_offers=np.zeros(shape=(number_of_runners, 2, 3, 2)),
+            full_price_ladder=np.zeros(shape=(number_of_runners, 2, 350, 2)),
             metadata=np.zeros(shape=(number_of_runners, 2)),
             sort_priority_mapping=create_sort_priority_mapping(market_change_message["marketDefinition"]),
             market_definition=market_change_message["marketDefinition"],

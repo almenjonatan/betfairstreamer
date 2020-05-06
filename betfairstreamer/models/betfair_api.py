@@ -360,7 +360,7 @@ class BetfairOrderRunnerChange(TypedDict, total=False):
     ml: List[List[float]]
 
 
-class BetfairOrderChange(TypedDict, total=False):
+class BetfairOrderMarketChange(TypedDict, total=False):
     accountId: int
     orc: List[BetfairOrderRunnerChange]
     closed: bool
@@ -374,7 +374,7 @@ class BetfairOrderChangeMessage(TypedDict, total=False):
     clk: str
     heartbeatMs: int
     pt: int
-    oc: List[BetfairOrderChange]
+    oc: List[BetfairOrderMarketChange]
     initialClk: str
     conflateMs: int
     segmentType: str

@@ -9,7 +9,7 @@ from betfairstreamer.stream.protocols import Connection
 
 
 @attr.s(auto_attribs=True, slots=True)
-class PipeLineConnection(Connection):
+class PipelineConnection(Connection):
 
     connection: zmq.Socket
 
@@ -20,7 +20,7 @@ class PipeLineConnection(Connection):
         return self.connection
 
     @classmethod
-    def create_pull_connection(cls, context: zmq.Context, url: str) -> PipeLineConnection:
+    def create_pull_connection(cls, context: zmq.Context, url: str) -> PipelineConnection:
         s = context.socket(zmq.PULL)
         s.bind(url)
 

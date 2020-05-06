@@ -24,11 +24,12 @@ class MarketCache:
 
             market_book = self.market_books.get(market_update["id"])
 
-            if market_book is None or market_update.get("img", False):
+            if market_book is None:
                 market_book = MarketBook.create_new_market_book(market_update)
                 self.market_books[market_book.market_id] = market_book
 
-            market_book.update_runners(market_update.get("rc", []))
+            market_book.update(market_update)
+
             updated_market_books.append(market_book)
 
         return updated_market_books

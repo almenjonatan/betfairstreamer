@@ -1,10 +1,9 @@
-from typing import Any, Tuple, List
+from typing import Any, Tuple
 
 import hypothesis.strategies as st
-import numpy as np
 from hypothesis.strategies import composite
 
-from betfairstreamer.models.betfair_api import RunnerStatus, BetfairMarketDefinition
+from betfairstreamer.models.betfair_api import RunnerStatus, BetfairMarketDefinition, BetfairMarketChangeMessage
 
 
 @composite
@@ -21,14 +20,19 @@ def generate_message(draw: Any) -> Tuple[int, bytes, str]:
 
 @composite
 def generate_runner_definitions(draw, number_of_runners):
+
+    assert number_of_runners <= 20
+
     runner_definitions = []
 
-    for i in range(number_of_runners):
+    selection_ids = draw(st.lists(st.integers(1, 1000), min_size=2, max_size=20, unique=True))
+
+    for index, selection_id in enumerate(selection_ids):
         runner_definitions.append(
             draw(st.fixed_dictionaries({
                 "status": st.sampled_from(RunnerStatus).map(lambda v: v.value),
-                "id": st.integers(0, 50),
-                "sortPriority": st.just(i + 1),
+                "id": st.just(selection_id),
+                "sortPriority": st.just(index + 1),
             }))
         )
 
@@ -69,8 +73,8 @@ def generate_market_definition_from_prev_version(draw, mdf: BetfairMarketDefinit
 
 
 @composite
-def market_definition(draw) -> BetfairMarketDefinition:
-    number_of_runners = draw(st.integers(1, 20))
+def market_definition_generator(draw) -> BetfairMarketDefinition:
+    number_of_runners = draw(st.integers(2, 20))
 
     runner_definitions = draw(generate_runner_definitions(number_of_runners))
 
@@ -92,7 +96,7 @@ def market_definition(draw) -> BetfairMarketDefinition:
             "inPlay": st.just(False),
             "crossMatching": st.just(True),
             "runnersVoidable": st.just(False),
-            "numberOfActiveRunners": st.integers(0, number_of_runners),
+            "numberOfActiveRunners": st.integers(2, number_of_runners),
             "betDelay": st.just(0),
             "status": st.just("OPEN"),
             "runners": st.just(runner_definitions),
@@ -110,77 +114,11 @@ def market_definition(draw) -> BetfairMarketDefinition:
 
 
 @composite
-def generate_single_market_update(draw, market_id: str, prev_market_definition: BetfairMarketDefinition):
-    market_update = draw(st.fixed_dictionaries({
-        "id": st.just(market_id),
-        "marketDefinition": st.one_of(st.none(), generate_market_definition_from_prev_version(prev_market_definition))
-    }))
+def market_update_generator(draw):
+    return draw(st.builds(
+        BetfairMarketChangeMessage,
+        op=st.just("mcm"),
+        pt=st.integers(0, 100),
+        mc=st.just([])
+    ))
 
-    return draw(st.fixed_dictionaries({
-        "op": st.just("mcm"),
-        "pt": st.just(10000000001),
-        "mc": st.just([market_update]),
-    }))
-
-
-@composite
-def generate_initial_image(draw, market_ids: List[str]):
-    market_update = draw(st.fixed_dictionaries({
-        "id": st.just(market_ids[0]),
-        "marketDefinition": market_definition()
-    }))
-
-    return draw(st.fixed_dictionaries({
-        "op": st.just("mcm"),
-        "pt": st.just(10000000000),
-        "mc": st.just([market_update]),
-        "img": st.just(True)
-    }))
-
-
-@composite
-def generate_price_size(draw, ladders: int):
-    price = st.floats(1.01, 1000).map(lambda p: round(p, 2))
-    size = st.floats(0, 100000000000).map(lambda s: round(s, 2))
-
-    price_sizes = draw(st.lists(st.tuples(price, size).map(list), max_size=ladders, unique_by=lambda u: u[0]))
-    return sorted(price_sizes, key=lambda u: u[0])
-
-
-@composite
-def generate_runner_change(draw, selection_id):
-    return draw(st.fixed_dictionaries({
-        "id": st.just(selection_id)
-    }, optional={
-        "batb": st.one_of(st.none(), st.just([]), generate_price_size(3)),
-    }))
-
-
-@composite
-def initial_market_change_message(draw):
-    mdf = draw(market_definition())
-
-    no_markets = draw(st.integers(0, 10))
-
-    market_updates = []
-
-    for market_id in ["1." + str(i) for i in np.random.choice(100, size=no_markets)]:
-        market_updates = [
-            {
-                "id": market_id,
-                "marketDefinition": mdf,
-                "rc": draw(generate_runner_change(selection_ids=[r["id"] for r in mdf["runners"]])),
-            }
-        ]
-
-    return draw(
-        st.fixed_dictionaries(
-            {
-                "op": st.just("mcm"),
-                "pt": st.integers(0, 100),
-                "mc": st.just(market_updates),
-                "ct": st.just("SUB_IMAGE"),
-                "img": st.just(True)
-            }
-        )
-    )
