@@ -430,10 +430,12 @@ class MarketBook:
             new_sort_priority_mapping = create_sort_priority_mapping(market_definition)
 
             k = [old_sort_priority_mapping[k] - 1 for k in new_sort_priority_mapping]
+            i = [v - 1 for v in new_sort_priority_mapping.values()]
 
-            self.full_price_ladder[:] = self.full_price_ladder[k]
-            self.best_display[:] = self.best_display[k]
-            self.best_offers[:] = self.best_offers[k]
+            if i != k:
+                self.full_price_ladder[i] = self.full_price_ladder[k]
+                self.best_display[i] = self.best_display[k]
+                self.best_offers[i] = self.best_offers[k]
 
             self.market_definition = market_change_message["marketDefinition"]
 
