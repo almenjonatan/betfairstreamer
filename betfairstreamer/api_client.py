@@ -1,16 +1,49 @@
+from __future__ import annotations
+
+import functools
 import json
 import time
+from datetime import datetime
 from itertools import chain
-from typing import List
+from typing import List, Union
 
 import attr
 import requests
 
-from betfairstreamer.models.betfair_api import CurrentOrderSummary
+from betfairstreamer.models.betfair_api import CurrentOrderSummary, BetfairCancelOrder, BetfairPlaceOrder
+
+
+def session_header(f):
+    @functools.wraps(f)
+    def session_wrapper(self: BetfairHTTPClient, *args, **kwargs):
+        session_token = self.get_session_token()
+
+        h = {'X-Application': self.app_key, 'X-Authentication': session_token, 'content-type': 'application/json'}
+
+        return f(self, *args, **kwargs, header=h)
+
+    return session_wrapper
+
+
+def create_generator_for_records(lister, betfair_filter, start_index, page_size):
+    current_record_index = start_index
+    more_available = True
+
+    while more_available:
+        betfair_filter.update({
+            "fromRecord": current_record_index,
+            "recordCount": page_size
+        })
+
+        current_record_index = current_record_index + page_size
+        response = lister(betfair_filter)
+        more_available = response["moreAvailable"]
+
+        yield response
 
 
 @attr.s(auto_attribs=True, slots=True)
-class BetfairRequester:
+class BetfairHTTPClient:
     username: str
     password: str
     app_key: str
@@ -18,6 +51,7 @@ class BetfairRequester:
     cert_key_path: str
     session_token: str = None
     locale: str = None
+    session_fetched_date: datetime = attr.Factory(lambda: datetime(year=1970, month=1, day=1))
 
     cert_endpoints = {
         "SE": "https://identitysso-cert.betfair.se/api/certlogin",
@@ -25,11 +59,6 @@ class BetfairRequester:
         "ES": "https://identitysso-cert.betfair.es/api/certlogin",
         "IT": "https://identitysso-cert.betfair.it/api/certlogin",
         "DEFAULT": "https://identitysso-cert.betfair.com/api/certlogin"
-    }
-
-    endpoints = {
-        "BETTING": "https://api.betfair.com/exchange/betting/rest/v1.0/",
-        "ACCOUNT": "https://api.betfair.com/exchange/account/rest/v1.0/"
     }
 
     def login(self):
@@ -53,53 +82,53 @@ class BetfairRequester:
 
             if res["loginStatus"] == "SUCCESS":
                 self.session_token = res["sessionToken"]
+                self.session_fetched_date = datetime.now()
 
-        return self.session_token
+                return self.session_token
+
+    @session_header
+    def send(self, operation, payload, header):
+        print(json.dumps(payload))
+        response = requests.post(operation, data=json.dumps(payload), headers=header)
+        return response.json()
+
+    def valid_session_token(self) -> bool:
+        return (datetime.now() - self.session_fetched_date).total_seconds() < 3600 * 7 + 1800
+
+    def get_session_token(self) -> str:
+        if self.valid_session_token():
+            return self.session_token
+
+        return self.login()
+
+
+@attr.s(auto_attribs=True, slots=True)
+class BetfairNgAPI:
+    betfair_http_client: BetfairHTTPClient
+
+    endpoints = {
+        "BETTING": "https://api.betfair.com/exchange/betting/rest/v1.0/",
+        "ACCOUNT": "https://api.betfair.com/exchange/account/rest/v1.0/"
+    }
 
     def list_current_orders(self, order_filter):
-        header = {'X-Application': self.app_key, 'X-Authentication': self.session_token,
-                  'content-type': 'application/json'}
-        endpoint = self.endpoints["BETTING"] + "listCurrentOrders/"
-
-        response = requests.post(endpoint, data=json.dumps(order_filter), headers=header)
-        response = response.json()
-
-        return response
+        operation = self.endpoints["BETTING"] + "listCurrentOrders/"
+        return self.betfair_http_client.send(operation, order_filter)
 
     def get_account_statement(self, account_statement_filter):
-        header = {'X-Application': self.app_key, 'X-Authentication': self.session_token,
-                  'content-type': 'application/json'}
-        endpoint = self.endpoints["ACCOUNT"] + "getAccountStatement/"
+        operation = self.endpoints["ACCOUNT"] + "getAccountStatement/"
+        return self.betfair_http_client.send(operation, account_statement_filter)
 
-        response = requests.post(endpoint, data=json.dumps(account_statement_filter), headers=header)
-        response = response.json()
-
-        return response
-
-
-def create_generator_for_records(lister, betfair_filter, start_index=0, page_size=3):
-    current_record_index = start_index
-    more_available = True
-
-    while more_available:
-        betfair_filter.update({
-            "fromRecord": current_record_index,
-            "recordCount": page_size
-        })
-
-        current_record_index = current_record_index + page_size
-        response = lister(betfair_filter)
-        more_available = response["moreAvailable"]
-
-        yield response
+    def get_session_token(self):
+        return self.betfair_http_client.get_session_token()
 
 
 @attr.s(auto_attribs=True, slots=True)
 class BetfairAPIClient:
-    requester: BetfairRequester
+    api_ng: BetfairNgAPI
 
     def get_session_token(self) -> str:
-        return self.requester.login()
+        return self.api_ng.get_session_token()
 
     def get_current_orders_generator(self, start_index=0, page_size=3, order_filter=None):
         if order_filter is None:
@@ -109,11 +138,10 @@ class BetfairAPIClient:
             raise ValueError("maximum page size = 100")
 
         for order_summary in create_generator_for_records(
-                self.requester.list_current_orders,
+                self.api_ng.list_current_orders,
                 order_filter,
                 start_index=start_index,
                 page_size=page_size):
-
             yield order_summary["currentOrders"]
 
     def get_account_statement_generator(self, start_index=0, page_size=3, account_statement_filter=None):
@@ -124,21 +152,28 @@ class BetfairAPIClient:
         if account_statement_filter is None:
             account_statement_filter = {}
 
-        for account_statement in create_generator_for_records(
-                self.requester.get_account_statement,
+        for account_statements in create_generator_for_records(
+                self.api_ng.get_account_statement,
                 account_statement_filter, start_index=start_index,
                 page_size=page_size):
-
-            yield account_statement["accountStatement"]
+            yield [json.loads(statement["itemClassData"]["unknownStatementItem"])
+                   for statement in account_statements["accountStatement"]]
 
     def get_current_orders(self, start_index=0, page_size=1000, order_filter=None) -> List[CurrentOrderSummary]:
 
         if order_filter is None:
             order_filter = {}
 
-        return [order
-                for order_summary in self.get_current_orders_generator(start_index, page_size, order_filter)
-                for order in order_summary]
+        orders = []
+
+        for order_summary in self.get_current_orders_generator(start_index, page_size, order_filter):
+            for order in order_summary:
+                ps = order["priceSize"]
+                order.pop("priceSize")
+
+                orders.append({**order, **ps})
+
+        return orders
 
     def get_account_statements(self, start_index=0, page_size=100, account_statement_filter=None):
         if account_statement_filter is None:
@@ -151,10 +186,10 @@ class BetfairAPIClient:
                 page_size=page_size,
                 account_statement_filter=account_statement_filter
         ):
-            statements = chain(statements, [statement["itemClassData"]["unknownStatementItem"] for statement in account_statements])
+            statements = chain(statements, account_statements)
             time.sleep(1)
 
-        return list(map(json.loads, statements))
+        return list(statements)
 
     @classmethod
     def from_requests_backend(
@@ -166,12 +201,57 @@ class BetfairAPIClient:
             cert_key_path: str,
             locale: str
     ):
-        return cls(
-            BetfairRequester(
-                username=username,
-                password=password,
-                app_key=app_key,
-                cert_crt_path=cert_crt_path,
-                cert_key_path=cert_key_path,
-                locale=locale
-            ))
+
+        http_client = BetfairHTTPClient(
+            username=username,
+            password=password,
+            app_key=app_key,
+            cert_crt_path=cert_crt_path,
+            cert_key_path=cert_key_path,
+            locale=locale
+        )
+
+        api_ng = BetfairNgAPI(http_client)
+
+        return cls(api_ng)
+
+
+@attr.s(auto_attribs=True, slots=True)
+class RequestTradeClient:
+    http_client: BetfairHTTPClient
+
+    operations = {
+        "PLACE": "https://api.betfair.com/exchange/betting/rest/v1.0/placeOrders/",
+        "CANCEL": "https://api.betfair.com/exchange/betting/rest/v1.0/cancelOrders/"
+    }
+
+    def execute(self, order: Union[BetfairCancelOrder, BetfairPlaceOrder]):
+        if order is None:
+            return
+
+        if order["instructions"] and "orderType" in order["instructions"][0]:
+            return self.http_client.send(self.operations["PLACE"], order)
+
+        return self.http_client.send(self.operations["CANCEL"], order)
+
+    @classmethod
+    def from_requests_backend(
+            cls,
+            username: str,
+            password: str,
+            app_key: str,
+            cert_crt_path: str,
+            cert_key_path: str,
+            locale: str
+    ):
+
+        http_client = BetfairHTTPClient(
+            username=username,
+            password=password,
+            app_key=app_key,
+            cert_crt_path=cert_crt_path,
+            cert_key_path=cert_key_path,
+            locale=locale
+        )
+
+        return cls(http_client)
