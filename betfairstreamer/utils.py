@@ -106,39 +106,6 @@ def localize_betfair_date(betfair_datetime: Optional[datetime]) -> Optional[date
         return None
 
 
-def get_trading_instance_from_env() -> APIClient:
-    trading = APIClient(
-        username=os.environ["BETFAIR_USERNAME"],
-        password=os.environ["BETFAIR_PASSWORD"],
-        app_key=os.environ["BETFAIR_APP_KEY"],
-        locale=os.environ.get("LOCALE"),
-        certs=os.path.abspath(os.environ["BETFAIR_CERT_PATH"]),
-    )
-
-    trading.login()
-
-    return trading
-
-
-def create_market_subscription(
-    id: int = 1,
-    market_filter: Optional[BetfairMarketFilter] = None,
-    market_data_filter: Optional[BetfairMarketDataFilter] = None,
-    segmentation_enabled: bool = True,
-    heartbeat_ms: int = 5000,
-    conflate_ms: int = 0,
-) -> BetfairMarketSubscriptionMessage:
-    return BetfairMarketSubscriptionMessage(
-        id=id,
-        op=OP.marketSubscription.value,
-        marketFilter=market_filter if market_filter else {},
-        marketDataFilter=market_data_filter if market_data_filter else {},
-        segmentationEnabled=segmentation_enabled,
-        heartbeatMs=heartbeat_ms,
-        conflateMs=conflate_ms,
-    )
-
-
 def create_order_subscription(
     id: int = 1,
     segmentation_enabled: bool = True,

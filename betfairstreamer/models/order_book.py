@@ -5,10 +5,9 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 import attr
-from betfairlightweight.resources.bettingresources import CurrentOrder
 
 from betfairstreamer.models.betfair_api import BetfairOrder, OrderStatus, OrderType, PersistenceType, Side
-from betfairstreamer.utils import localize_betfair_date, parse_utc_timestamp
+from betfairstreamer.utils import parse_utc_timestamp
 
 
 @attr.s(slots=True, auto_attribs=True)
@@ -67,36 +66,6 @@ class Order:
             customer_order_reference=order["rfo"],
             status=OrderStatus[order["status"]],
             size_remaining=order["sr"],
-        )
-
-    @classmethod
-    def from_betfairlightweight(cls, order: CurrentOrder) -> Order:
-        return Order(
-            bet_id=order.bet_id,
-            market_id=order.market_id,
-            selection_id=order.selection_id,
-            handicap=order.handicap,
-            price=order.price_size.price,
-            size=order.price_size.size,
-            side=Side[order.side],
-            status=OrderStatus[order.status],
-            persistence_type=PersistenceType[order.persistence_type],
-            order_type=OrderType[order.order_type],
-            bsp_liability=order.bsp_liability,
-            placed_date=localize_betfair_date(order.placed_date),
-            average_price_matched=order.average_price_matched,
-            size_matched=order.size_matched,
-            size_remaining=order.size_remaining,
-            size_lapsed=order.size_lapsed,
-            size_cancelled=order.size_cancelled,
-            regulator_code=order.regulator_code,
-            customer_order_reference=order.customer_order_ref,
-            customer_strategy_reference=order.customer_strategy_ref,
-            matched_date=localize_betfair_date(order.matched_date),
-            lapse_status_reason_code=None,
-            lapsed_date=None,
-            regulator_auth_code=None,
-            size_voided=order.size_voided,
         )
 
     def serialize(self) -> Dict[Any, Any]:

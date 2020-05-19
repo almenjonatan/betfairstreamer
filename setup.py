@@ -16,7 +16,6 @@ setuptools.setup(
     packages=["betfairstreamer", "betfairstreamer.models", "betfairstreamer.stream"],
     package_data={"betfairstreamer": ["py.typed"]},
     install_requires=[
-        "betfairlightweight",
         "orjson",
         "numpy",
         "ciso8601",
