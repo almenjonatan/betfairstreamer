@@ -4,9 +4,8 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import attr
-from betfairlightweight.resources import CurrentOrders
 
-from betfairstreamer.models.betfair_api import BetfairOrderChangeMessage, Side
+from betfairstreamer.models.betfair_api import BetfairOrderChangeMessage, Side, CurrentOrderSummary
 from betfairstreamer.models.order_book import Order
 
 
@@ -107,10 +106,10 @@ class OrderCache:
         return self.update(order_change_message)
 
     @classmethod
-    def from_betfairlightweight(cls, current_orders: CurrentOrders) -> OrderCache:
+    def from_api_ng(cls, current_orders: List[CurrentOrderSummary]) -> OrderCache:
         oc = cls()
 
-        for o in current_orders.orders:
-            oc.update_order(Order.from_betfairlightweight(o))
+        for o in current_orders:
+            oc.update_order(Order.from_api_ng(o))
 
         return oc

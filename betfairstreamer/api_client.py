@@ -1,9 +1,12 @@
 import json
 import time
 from itertools import chain
+from typing import List
 
 import attr
 import requests
+
+from betfairstreamer.models.betfair_api import CurrentOrderSummary
 
 
 @attr.s(auto_attribs=True, slots=True)
@@ -128,7 +131,7 @@ class BetfairAPIClient:
 
             yield account_statement["accountStatement"]
 
-    def get_current_orders(self, start_index=0, page_size=1000, order_filter=None):
+    def get_current_orders(self, start_index=0, page_size=1000, order_filter=None) -> List[CurrentOrderSummary]:
 
         if order_filter is None:
             order_filter = {}

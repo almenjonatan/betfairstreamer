@@ -6,8 +6,9 @@ from typing import Any, Dict, Optional
 
 import attr
 
-from betfairstreamer.models.betfair_api import BetfairOrder, OrderStatus, OrderType, PersistenceType, Side
-from betfairstreamer.utils import parse_utc_timestamp
+from betfairstreamer.models.betfair_api import BetfairOrder, OrderStatus, OrderType, PersistenceType, Side, \
+    CurrentOrderSummary
+from betfairstreamer.utils import parse_utc_timestamp, parse_betfair_date
 
 
 @attr.s(slots=True, auto_attribs=True)
@@ -66,6 +67,36 @@ class Order:
             customer_order_reference=order["rfo"],
             status=OrderStatus[order["status"]],
             size_remaining=order["sr"],
+        )
+
+    @classmethod
+    def from_api_ng(cls, order: CurrentOrderSummary):
+        return cls(
+            bet_id=order["betId"],
+            market_id=order["marketId"],
+            selection_id=order["selectionId"],
+            handicap=order.get("handicap", 0),
+            price=order["priceSize"]["price"],
+            size=order["priceSize"]["size"],
+            bsp_liability=order.get("bspLiability", 0),
+            side=Side[order["side"]],
+            status=OrderStatus[order["status"]],
+            persistence_type=PersistenceType[order["persistenceType"]],
+            order_type=OrderType[order["orderType"]],
+            placed_date=parse_betfair_date(order["placedDate"]),
+            matched_date=parse_betfair_date(order.get("matchedDate")),
+            average_price_matched=order.get("averagePriceMatched", 0),
+            size_matched=order["sizeMatched"],
+            size_remaining=order["sizeRemaining"],
+            size_lapsed=order["sizeLapsed"],
+            size_cancelled=order["sizeCancelled"],
+            size_voided=order["sizeVoided"],
+            regulator_auth_code=order.get("regulatorAuthCode"),
+            regulator_code=order.get("regulatorCode"),
+            customer_order_reference=order.get("customerOrderRef"),
+            customer_strategy_reference=order.get("customerStrategyRef"),
+            lapsed_date=None,
+            lapse_status_reason_code=None
         )
 
     def serialize(self) -> Dict[Any, Any]:
