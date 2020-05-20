@@ -1,25 +1,29 @@
+from typing import List, Optional
+
 from betfairstreamer.models.betfair_api import (
     BetfairMarketFilter,
     BetfairMarketDataFilter,
-    BetfairMarketSubscriptionMessage, OP
+    BetfairMarketSubscriptionMessage, OP, BetfairOrderSubscriptionMessage, BetfairOrderFilter
 )
 
 
 def create_market_subscription(
-        market_ids=None,
-        bsp_market=None,
-        betting_types=None,
-        event_type_ids=None,
-        event_ids=None,
-        turn_in_play_enabled=None,
-        market_types=None,
-        venues=None,
-        country_codes=None,
-        race_types=None,
-        fields=None,
-        ladder_levels=3,
-        stream_id=1
-
+        market_ids: str = None,
+        bsp_market: bool = None,
+        betting_types: List[str] = None,
+        event_type_ids: List[str] = None,
+        event_ids: List[str] = None,
+        turn_in_play_enabled: bool = None,
+        market_types: List[str] = None,
+        venues: List[str] = None,
+        country_codes: List[str] = None,
+        race_types: List[str] = None,
+        fields: List[str] = None,
+        conflate_ms: int = 0,
+        ladder_levels: int = 3,
+        stream_id=1,
+        segmentation_enabled=True,
+        heartbeat_ms=5000,
 ):
     market_filter = BetfairMarketFilter()
     market_data_filter = BetfairMarketDataFilter()
@@ -61,7 +65,7 @@ def create_market_subscription(
 
     if event_ids is not None:
 
-        assert isinstance(event_type_ids, list), "event_ids should be of instance, " + str(list)
+        assert isinstance(event_ids, list), "event_ids should be of instance, " + str(list)
 
         for event_id in event_ids:
             assert isinstance(event_id, str), "event_ids should only contain " + str(str)
@@ -138,13 +142,24 @@ def create_market_subscription(
         op=OP.marketSubscription.value,
         id=stream_id,
         marketFilter=market_filter,
-        marketDataFilter=market_data_filter
+        marketDataFilter=market_data_filter,
+        conflateMs=conflate_ms,
+        segmentationEnabled=segmentation_enabled,
+        heartbeatMs=heartbeat_ms
     )
 
-
-market_subscription_message = create_market_subscription(
-    betting_types=["ODDS"],
-    event_type_ids=["7"],
-    country_codes=["DE"],
-    fields=["EX_TRADED", "EX_TRADED_VOL"]
-)
+def create_order_subscription(
+        stream_id: int = 1,
+        segmentation_enabled: bool = True,
+        heartbeat_ms: int = 5000,
+        conflate_ms: int = 0,
+        order_filter: Optional[BetfairOrderFilter] = None,
+) -> BetfairOrderSubscriptionMessage:
+    return BetfairOrderSubscriptionMessage(
+        id=stream_id,
+        op=OP.orderSubscription.value,
+        orderFilter=order_filter if order_filter else {},
+        segmentationEnabled=segmentation_enabled,
+        heartbeatMs=heartbeat_ms,
+        conflateMs=conflate_ms,
+    )

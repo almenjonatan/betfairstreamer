@@ -50,7 +50,7 @@ class BetfairHTTPClient:
     cert_crt_path: str
     cert_key_path: str
     session_token: str = None
-    locale: str = None
+    locale: str = ""
     session: requests.Session = attr.Factory(requests.Session)
     session_fetched_date: datetime = attr.Factory(lambda: datetime(year=1970, month=1, day=1))
 
@@ -64,10 +64,7 @@ class BetfairHTTPClient:
 
     def login(self):
 
-        if self.locale is None:
-            endpoint = self.cert_endpoints["DEFAULT"]
-        else:
-            endpoint = self.cert_endpoints[self.locale]
+        endpoint = self.cert_endpoints.get(self.locale, "DEFAULT")
 
         payload = {
             "username": self.username,
