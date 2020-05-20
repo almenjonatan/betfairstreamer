@@ -51,6 +51,7 @@ class BetfairHTTPClient:
     cert_key_path: str
     session_token: str = None
     locale: str = None
+    session: requests.Session = attr.Factory(requests.Session)
     session_fetched_date: datetime = attr.Factory(lambda: datetime(year=1970, month=1, day=1))
 
     cert_endpoints = {
@@ -75,7 +76,7 @@ class BetfairHTTPClient:
 
         headers = {'X-Application': self.app_key, 'Content-Type': 'application/x-www-form-urlencoded'}
 
-        resp = requests.post(endpoint, data=payload, cert=(self.cert_crt_path, self.cert_key_path), headers=headers)
+        resp = self.session.post(endpoint, data=payload, cert=(self.cert_crt_path, self.cert_key_path), headers=headers)
 
         if resp.status_code == 200:
             res = resp.json()
@@ -88,7 +89,6 @@ class BetfairHTTPClient:
 
     @session_header
     def send(self, operation, payload, header):
-        print(json.dumps(payload))
         response = requests.post(operation, data=json.dumps(payload), headers=header)
         return response.json()
 
@@ -103,7 +103,7 @@ class BetfairHTTPClient:
 
 
 @attr.s(auto_attribs=True, slots=True)
-class BetfairNgAPI:
+class BetfairNGClient:
     betfair_http_client: BetfairHTTPClient
 
     endpoints = {
@@ -125,7 +125,7 @@ class BetfairNgAPI:
 
 @attr.s(auto_attribs=True, slots=True)
 class BetfairAPIClient:
-    api_ng: BetfairNgAPI
+    api_ng: BetfairNGClient
 
     def get_session_token(self) -> str:
         return self.api_ng.get_session_token()
@@ -211,7 +211,7 @@ class BetfairAPIClient:
             locale=locale
         )
 
-        api_ng = BetfairNgAPI(http_client)
+        api_ng = BetfairNGClient(http_client)
 
         return cls(api_ng)
 
