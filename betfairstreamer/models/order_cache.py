@@ -5,7 +5,8 @@ from typing import Dict, List, Optional, Tuple
 
 import attr
 
-from betfairstreamer.models.betfair_api import BetfairOrderChangeMessage, Side, CurrentOrderSummary
+from betfairstreamer.models.betfair_api import BetfairOrderChangeMessage, CurrentOrderSummary, Side
+from betfairstreamer.models.betfair_api_extensions import CurrentOrderSummaryRecord
 from betfairstreamer.models.order_book import Order
 
 
@@ -111,5 +112,14 @@ class OrderCache:
 
         for o in current_orders:
             oc.update_order(Order.from_api_ng(o))
+
+        return oc
+
+    @classmethod
+    def from_records(cls, current_orders: List[CurrentOrderSummaryRecord]) -> OrderCache:
+        oc = cls()
+
+        for o in current_orders:
+            oc.update_order(Order.from_record(o))
 
         return oc

@@ -343,16 +343,17 @@ class CurrentOrderSummary(TypedDict, total=False):
     orderType: str
     placedDate: str
     matchedDate: Optional[str]
-    averagePriceMatched: float
-    sizeMatched: float
-    sizeRemaining: float
-    sizeLapsed: float
-    sizeCancelled: float
-    sizeVoided: float
-    regulatorAuthCode: str
-    regulatorCode: str
-    customerOrderRef: str
-    customerStrategyRef: str
+    averagePriceMatched: Optional[float]
+    sizeMatched: Optional[float]
+    sizeRemaining: Optional[float]
+    sizeLapsed: Optional[float]
+    sizeCancelled: Optional[float]
+    sizeVoided: Optional[float]
+    regulatorAuthCode: Optional[str]
+    regulatorCode: Optional[str]
+    customerOrderRef: Optional[str]
+    customerStrategyRef: Optional[str]
+
 
 class BetfairOrder(TypedDict):
     side: str

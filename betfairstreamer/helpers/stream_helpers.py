@@ -1,30 +1,33 @@
 from typing import List, Optional
 
 from betfairstreamer.models.betfair_api import (
-    BetfairMarketFilter,
+    OP,
     BetfairMarketDataFilter,
-    BetfairMarketSubscriptionMessage, OP, BetfairOrderSubscriptionMessage, BetfairOrderFilter
+    BetfairMarketFilter,
+    BetfairMarketSubscriptionMessage,
+    BetfairOrderFilter,
+    BetfairOrderSubscriptionMessage,
 )
 
 
 def create_market_subscription(
-        market_ids: str = None,
-        bsp_market: bool = None,
-        betting_types: List[str] = None,
-        event_type_ids: List[str] = None,
-        event_ids: List[str] = None,
-        turn_in_play_enabled: bool = None,
-        market_types: List[str] = None,
-        venues: List[str] = None,
-        country_codes: List[str] = None,
-        race_types: List[str] = None,
-        fields: List[str] = None,
-        conflate_ms: int = 0,
-        ladder_levels: int = 3,
-        stream_id=1,
-        segmentation_enabled=True,
-        heartbeat_ms=5000,
-):
+    market_ids: Optional[str] = None,
+    bsp_market: Optional[bool] = None,
+    betting_types: Optional[List[str]] = None,
+    event_type_ids: Optional[List[str]] = None,
+    event_ids: Optional[List[str]] = None,
+    turn_in_play_enabled: Optional[bool] = None,
+    market_types: Optional[List[str]] = None,
+    venues: Optional[List[str]] = None,
+    country_codes: Optional[List[str]] = None,
+    race_types: Optional[List[str]] = None,
+    fields: Optional[List[str]] = None,
+    conflate_ms: Optional[int] = 0,
+    ladder_levels: Optional[int] = 3,
+    stream_id: int = 1,
+    segmentation_enabled: Optional[bool] = True,
+    heartbeat_ms: Optional[int] = 5000,
+) -> BetfairMarketSubscriptionMessage:
     market_filter = BetfairMarketFilter()
     market_data_filter = BetfairMarketDataFilter()
 
@@ -49,8 +52,9 @@ def create_market_subscription(
 
         for betting_type in betting_types:
             assert isinstance(betting_type, str), "betting type should be of instance " + str(str)
-            assert betting_type in betting_types_entries, betting_type + " is not a valid betting type\n" + "valid betting types: " + str(
-                betting_types_entries)
+            assert betting_type in betting_types_entries, (
+                betting_type + " is not a valid betting type\n" + "valid betting types: " + str(betting_types_entries)
+            )
 
         market_filter["bettingTypes"] = betting_types
 
@@ -114,15 +118,17 @@ def create_market_subscription(
 
     if fields is not None:
         assert isinstance(fields, list)
-        valid_fields = {"EX_BEST_OFFERS_DISP",
-                        "EX_BEST_OFFERS",
-                        "EX_ALL_OFFERS",
-                        "EX_TRADED",
-                        "EX_TRADED_VOL",
-                        "EX_LTP",
-                        "EX_MARKET_DEF",
-                        "SP_TRADED",
-                        "SP_PROJECTED"}
+        valid_fields = {
+            "EX_BEST_OFFERS_DISP",
+            "EX_BEST_OFFERS",
+            "EX_ALL_OFFERS",
+            "EX_TRADED",
+            "EX_TRADED_VOL",
+            "EX_LTP",
+            "EX_MARKET_DEF",
+            "SP_TRADED",
+            "SP_PROJECTED",
+        }
         for f in fields:
             assert isinstance(f, str), "fields should only contain " + str(str)
             assert f in valid_fields, "field " + f + " not in valid fields\nvalid fields: " + str(valid_fields)
@@ -131,7 +137,9 @@ def create_market_subscription(
 
     if ladder_levels is not None:
         assert isinstance(ladder_levels, int)
-        assert 0 < ladder_levels <= 10, "Ladder levels are only valdid 1 - 10, if you want more use field, EX_ALL_OFFERS"
+        assert (
+            0 < ladder_levels <= 10
+        ), "Ladder levels are only valdid 1 - 10, if you want more use field, EX_ALL_OFFERS"
 
     market_data_filter["ladderLevels"] = ladder_levels
 
@@ -145,15 +153,16 @@ def create_market_subscription(
         marketDataFilter=market_data_filter,
         conflateMs=conflate_ms,
         segmentationEnabled=segmentation_enabled,
-        heartbeatMs=heartbeat_ms
+        heartbeatMs=heartbeat_ms,
     )
 
+
 def create_order_subscription(
-        stream_id: int = 1,
-        segmentation_enabled: bool = True,
-        heartbeat_ms: int = 5000,
-        conflate_ms: int = 0,
-        order_filter: Optional[BetfairOrderFilter] = None,
+    stream_id: int = 1,
+    segmentation_enabled: bool = True,
+    heartbeat_ms: int = 5000,
+    conflate_ms: int = 0,
+    order_filter: Optional[BetfairOrderFilter] = None,
 ) -> BetfairOrderSubscriptionMessage:
     return BetfairOrderSubscriptionMessage(
         id=stream_id,

@@ -135,7 +135,7 @@ def test_insert_order():
 def test_list_current_orders_insert():
     order_cache = OrderCache()
 
-    co = {
+    current_orders = {
         "currentOrders": [
             {
                 "betId": "197366684443",
@@ -355,8 +355,6 @@ def test_list_current_orders_insert():
         "moreAvailable": False,
     }
 
-    current_orders = CurrentOrders(**co)
-
     su = [
         b'{"op":"ocm","initialClk":"DeSC9JgCDuv5s5QCDsjci5YCDdndt5kCDbbTqZcC","clk":"AAAAAAAAAAAAAA==",'
         b'"conflateMs":0,"heartbeatMs":5000,"pt":1583578555932,"ct":"SUB_IMAGE","oc":[{"id":"1.169206538",'
@@ -377,7 +375,7 @@ def test_list_current_orders_insert():
         b'"sm":0,"sr":100,"sl":0,"sc":0,"sv":0,"rac":"","rc":"REG_SWE","rfo":"2","rfs":""}],"mb":[[3.2,100]]}]}]} '
     ]
 
-    order_cache = OrderCache.from_betfairlightweight(current_orders)
+    order_cache = OrderCache.from_api_ng(current_orders["currentOrders"])
 
     updates = order_cache.update(orjson.loads(su[0]))
 
@@ -438,7 +436,7 @@ def test_order_on_selection():
         "moreAvailable": False,
     }
 
-    order_cache = OrderCache.from_betfairlightweight(CurrentOrders(**co))
+    order_cache = OrderCache.from_api_ng(co["currentOrders"])
 
     assert (
             len(
@@ -478,7 +476,7 @@ def test_out_of_band_order():
         "moreAvailable": False,
     }
 
-    order_cache = OrderCache.from_betfairlightweight(CurrentOrders(**co))
+    order_cache = OrderCache.from_api_ng(co["currentOrders"])
 
     o = {
         "op": "ocm",
