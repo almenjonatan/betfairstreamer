@@ -5,12 +5,12 @@ import json
 import time
 from datetime import datetime
 from itertools import chain
-from typing import Any, Callable, Dict, Generator, List, Union
+from typing import Any, Dict, Union, Optional
 
 import attr
 import requests
 
-from betfairstreamer.models.betfair_api import BetfairCancelOrder, BetfairPlaceOrder, CurrentOrderSummary
+from betfairstreamer.models.betfair_api import BetfairCancelOrder, BetfairPlaceOrder, CurrentOrderSummaryReport
 
 
 def session_header(f):
@@ -25,9 +25,10 @@ def session_header(f):
     return session_wrapper
 
 
-def create_generator_for_records(
-    lister: Callable[[str, dict], dict], betfair_filter: dict, start_index: int, page_size: int
-) -> Generator[List[dict], None, None]:
+Records = Union[CurrentOrderSummaryReport]
+
+
+def create_generator_for_records(lister, betfair_filter: dict, start_index: int, page_size: int):
     current_record_index = start_index
     more_available = True
 
@@ -61,7 +62,7 @@ class BetfairHTTPClient:
         "DEFAULT": "https://identitysso-cert.betfair.com/api/certlogin",
     }
 
-    def login(self):
+    def login(self) -> Optional[str]:
 
         endpoint = self.cert_endpoints.get(self.locale, "DEFAULT")
 
@@ -88,7 +89,7 @@ class BetfairHTTPClient:
     def valid_session_token(self) -> bool:
         return (datetime.now() - self.session_fetched_date).total_seconds() < 3600 * 7 + 1800
 
-    def get_session_token(self) -> str:
+    def get_session_token(self) -> Optional[str]:
         if self.valid_session_token():
             return self.session_token
 
@@ -123,7 +124,7 @@ class BetfairAPIClient:
     def get_session_token(self) -> str:
         return self.api_ng.get_session_token()
 
-    def get_current_orders_generator(self, start_index=0, page_size=3, order_filter=None):
+    def get_current_orders_generator(self, start_index=0, page_size=3, order_filter: Optional[dict] = None):
         if order_filter is None:
             order_filter = {}
 
@@ -131,11 +132,12 @@ class BetfairAPIClient:
             raise ValueError("maximum page size = 100")
 
         for order_summary in create_generator_for_records(
-            self.api_ng.list_current_orders, order_filter, start_index=start_index, page_size=page_size
+                self.api_ng.list_current_orders, order_filter, start_index=start_index, page_size=page_size
         ):
             yield order_summary["currentOrders"]
 
-    def get_account_statement_generator(self, start_index=0, page_size=3, account_statement_filter=None):
+    def get_account_statement_generator(self, start_index=0, page_size=3,
+                                        account_statement_filter: Optional[dict] = None):
 
         if not 0 < page_size <= 100:
             raise ValueError("min page size 1, max page size = 100")
@@ -144,14 +146,15 @@ class BetfairAPIClient:
             account_statement_filter = {}
 
         for account_statements in create_generator_for_records(
-            self.api_ng.get_account_statement, account_statement_filter, start_index=start_index, page_size=page_size
+                self.api_ng.get_account_statement, account_statement_filter, start_index=start_index,
+                page_size=page_size
         ):
             yield [
                 json.loads(statement["itemClassData"]["unknownStatementItem"])
                 for statement in account_statements["accountStatement"]
             ]
 
-    def get_current_orders(self, start_index=0, page_size=1000, order_filter=None) -> List[CurrentOrderSummary]:
+    def get_current_orders(self, start_index=0, page_size=1000, order_filter: Optional[dict] = None):
 
         if order_filter is None:
             order_filter = {}
@@ -167,14 +170,14 @@ class BetfairAPIClient:
 
         return orders
 
-    def get_account_statements(self, start_index=0, page_size=100, account_statement_filter=None):
+    def get_account_statements(self, start_index=0, page_size=100, account_statement_filter: Optional[dict] = None):
         if account_statement_filter is None:
             account_statement_filter = {}
 
         statements = []
 
         for account_statements in self.get_account_statement_generator(
-            start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter
+                start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter
         ):
             statements = chain(statements, account_statements)
             time.sleep(1)
@@ -183,8 +186,8 @@ class BetfairAPIClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
-    ):
+            cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
+    ) -> BetfairAPIClient:
 
         http_client = BetfairHTTPClient(
             username=username,
@@ -220,8 +223,8 @@ class RequestTradeClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
-    ):
+            cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
+    ) -> RequestTradeClient:
 
         http_client = BetfairHTTPClient(
             username=username,

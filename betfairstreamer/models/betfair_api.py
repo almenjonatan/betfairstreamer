@@ -354,6 +354,9 @@ class CurrentOrderSummary(TypedDict, total=False):
     customerOrderRef: Optional[str]
     customerStrategyRef: Optional[str]
 
+class CurrentOrderSummaryReport(TypedDict, total=False):
+    currentOrders: List[CurrentOrderSummary]
+    moreAvailable: bool
 
 class BetfairOrder(TypedDict):
     side: str
