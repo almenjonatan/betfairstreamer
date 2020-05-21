@@ -325,6 +325,39 @@ class BetfairMarketChangeMessage(TypedDict, total=False):
     status: int
 
 
+class PriceSize(TypedDict):
+    price: float
+    size: float
+
+
+class CurrentOrderSummary(TypedDict, total=False):
+    betId: str
+    marketId: str
+    selectionId: int
+    handicap: float
+    priceSize: PriceSize
+    bspLiability: float
+    side: str
+    status: str
+    persistenceType: str
+    orderType: str
+    placedDate: str
+    matchedDate: Optional[str]
+    averagePriceMatched: Optional[float]
+    sizeMatched: Optional[float]
+    sizeRemaining: Optional[float]
+    sizeLapsed: Optional[float]
+    sizeCancelled: Optional[float]
+    sizeVoided: Optional[float]
+    regulatorAuthCode: Optional[str]
+    regulatorCode: Optional[str]
+    customerOrderRef: Optional[str]
+    customerStrategyRef: Optional[str]
+
+class CurrentOrderSummaryReport(TypedDict, total=False):
+    currentOrders: List[CurrentOrderSummary]
+    moreAvailable: bool
+
 class BetfairOrder(TypedDict):
     side: str
     sv: Union[int, float]
