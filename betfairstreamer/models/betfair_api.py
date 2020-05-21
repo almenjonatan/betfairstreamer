@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional, TypedDict, Union
+from typing import List, Optional, TypedDict, Union, Set
 
 
 class PersistenceType(Enum):
@@ -108,6 +108,15 @@ class RunnerStatus(Enum):
     REMOVED_VACANT = "REMOVED_VACANT"
     HIDDEN = "HIDDEN"
     PLACED = "PLACED"
+
+
+class ListClearedOrderRequestRequired(TypedDict):
+    betStatus: str
+
+
+class ListClearedOrderParams(ListClearedOrderRequestRequired, total=False):
+    eventTypeIds: Set[str]
+    eventIds: Set[str]
 
 
 class BetfairLimitOrder(TypedDict, total=False):
@@ -354,9 +363,11 @@ class CurrentOrderSummary(TypedDict, total=False):
     customerOrderRef: Optional[str]
     customerStrategyRef: Optional[str]
 
+
 class CurrentOrderSummaryReport(TypedDict, total=False):
     currentOrders: List[CurrentOrderSummary]
     moreAvailable: bool
+
 
 class BetfairOrder(TypedDict):
     side: str

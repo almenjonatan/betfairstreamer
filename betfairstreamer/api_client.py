@@ -105,13 +105,85 @@ class BetfairNGClient:
         "ACCOUNT": "https://api.betfair.com/exchange/account/rest/v1.0/",
     }
 
-    def list_current_orders(self, order_filter):
-        operation = self.endpoints["BETTING"] + "listCurrentOrders/"
-        return self.betfair_http_client.send(operation, order_filter)
+    def list_event_types(self, params):
+        operation = self.endpoints["BETTING"] + "listEventTypes/"
+        return self.betfair_http_client.send(operation, params)
 
-    def get_account_statement(self, account_statement_filter):
+    def list_competitions(self, params):
+        operation = self.endpoints["BETTING"] + "listCompetitions/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_time_ranges(self, params):
+        operation = self.endpoints["BETTING"] + "listTimeRanges/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_events(self, params):
+        operation = self.endpoints["BETTING"] + "listEvents/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_market_types(self, params):
+        operation = self.endpoints["BETTING"] + "listMarketTypes/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_countries(self, params):
+        operation = self.endpoints["BETTING"] + "listCountries/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_venues(self, params):
+        operation = self.endpoints["BETTING"] + "listVenues/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_market_catalogue(self, params):
+        operation = self.endpoints["BETTING"] + "listMarketCatalogue/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_market_book(self, params):
+        operation = self.endpoints["BETTING"] + "listMarketBook>/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_runner_book(self, params):
+        operation = self.endpoints["BETTING"] + "listRunnerBook/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_market_profit_and_loss(self, params):
+        operation = self.endpoints["BETTING"] + "listMarketProfitAndLoss/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_current_orders(self, params):
+        operation = self.endpoints["BETTING"] + "listCurrentOrders/"
+        return self.betfair_http_client.send(operation, params)
+
+    def list_cleared_orders(self, params):
+        operation = self.endpoints["BETTING"] + "listClearedOrders/"
+        return self.betfair_http_client.send(operation, params)
+
+    def create_developer_app_keys(self, params):
+        operation = self.endpoints["ACCOUNT"] + "createDeveloperAppKeys/"
+        return self.betfair_http_client.send(operation, params)
+
+    def get_developer_app_keys(self, params):
+        operation = self.endpoints["ACCOUNT"] + "getDeveloperAppKeys/"
+        return self.betfair_http_client.send(operation, params)
+
+    def get_account_funds(self, params):
+        operation = self.endpoints["ACCOUNT"] + "getAccountFunds/"
+        return self.betfair_http_client.send(operation, params)
+
+    def transfer_funds(self, params):
+        operation = self.endpoints["ACCOUNT"] + "transferFunds/"
+        return self.betfair_http_client.send(operation, params)
+
+    def get_account_details(self, params):
+        operation = self.endpoints["ACCOUNT"] + "getAccountDetails/"
+        return self.betfair_http_client.send(operation, params)
+
+    def get_account_statement(self, params):
         operation = self.endpoints["ACCOUNT"] + "getAccountStatement/"
-        return self.betfair_http_client.send(operation, account_statement_filter)
+        return self.betfair_http_client.send(operation, params)
+
+    def list_currency_rates(self, params):
+        operation = self.endpoints["ACCOUNT"] + "listCurrencyRates/"
+        return self.betfair_http_client.send(operation, params)
 
     def get_session_token(self):
         return self.betfair_http_client.get_session_token()
