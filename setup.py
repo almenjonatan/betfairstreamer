@@ -13,7 +13,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/almenjonatan/betfairstreamer.git",
-    packages=["betfairstreamer", "betfairstreamer.models", "betfairstreamer.stream"],
+    packages=["betfairstreamer", "betfairstreamer.models", "betfairstreamer.stream", "betfairstreamer.helpers"],
     package_data={"betfairstreamer": ["py.typed"]},
     install_requires=[
         "orjson",
