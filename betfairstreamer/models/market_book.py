@@ -376,6 +376,7 @@ class MarketBook:
     best_display: np.ndarray
     best_offers: np.ndarray
     full_price_ladder: np.ndarray
+    trd: np.ndarray
 
     def update_runners(self, runner_change: List[BetfairRunnerChange]) -> None:
         for r in runner_change:
@@ -387,8 +388,10 @@ class MarketBook:
             batb = r.get("batb", [])
             batl = r.get("batl", [])
 
-            atb = r.get("atb", [])
             atl = r.get("atl", [])
+            atb = r.get("atb", [])
+
+            trd = r.get("trd", [])
 
             if bdatb:
                 new_values = np.array(bdatb)
@@ -411,12 +414,22 @@ class MarketBook:
                 self.best_offers[sort_priority, 1, batl_index, :] = new_values[:, 1:]
 
             if atb:
-                indexes = [FULL_PRICE_LADDER_INDEX[u[0]] for u in atb]
-                self.full_price_ladder[sort_priority, 0, indexes, :] = np.array(atb)
+                for u in atb:
+                    if u[1] == 0:
+                        self.full_price_ladder[sort_priority, 0, FULL_PRICE_LADDER_INDEX[u[0]], :] = 0
+                    else:
+                        self.full_price_ladder[sort_priority, 0, FULL_PRICE_LADDER_INDEX[u[0]], :] = u
 
             if atl:
-                indexes = [FULL_PRICE_LADDER_INDEX[u[0]] for u in atl]
-                self.full_price_ladder[sort_priority, 1, indexes, :] = np.array(atl)
+                for u in atl:
+                    if u[1] == 0:
+                        self.full_price_ladder[sort_priority, 1, FULL_PRICE_LADDER_INDEX[u[0]], :] = 0
+                    else:
+                        self.full_price_ladder[sort_priority, 1, FULL_PRICE_LADDER_INDEX[u[0]], :] = u
+
+            if trd:
+                for u in trd:
+                    self.trd[sort_priority, FULL_PRICE_LADDER_INDEX[u[0]], :] = u
 
             if "ltp" in r:
                 self.metadata[sort_priority, 0] = r.get("ltp")
@@ -450,12 +463,13 @@ class MarketBook:
 
         market_book = cls(
             market_id=market_change_message["id"],
-            best_display=-np.zeros(shape=(number_of_runners, 2, 3, 2)),
+            best_display=np.zeros(shape=(number_of_runners, 2, 3, 2)),
             best_offers=np.zeros(shape=(number_of_runners, 2, 3, 2)),
             full_price_ladder=np.zeros(shape=(number_of_runners, 2, 350, 2)),
             metadata=np.zeros(shape=(number_of_runners, 2)),
             sort_priority_mapping=create_sort_priority_mapping(market_change_message["marketDefinition"]),
             market_definition=market_change_message["marketDefinition"],
+            trd=np.zeros(shape=(number_of_runners, 350, 2)),
         )
 
         return market_book

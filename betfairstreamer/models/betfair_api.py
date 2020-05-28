@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional, TypedDict, Union, Set
+from typing import List, Optional, Set, TypedDict, Union
 
 
 class PersistenceType(Enum):
