@@ -20,7 +20,8 @@ setuptools.setup(
         "ciso8601",
         "attrs",
         "pytz",
-        "zmq"
+        "zmq",
+        "requests"
     ],
     include_package_data=True,
     entry_points={"console_scripts": ["betfairstreamer = betfairstreamer.server:start"]},

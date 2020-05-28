@@ -6,7 +6,6 @@ from asyncio import StreamReader, StreamWriter
 from typing import Any, Dict, List, Tuple, Union
 
 import attr
-import orjson
 
 from betfairstreamer.models.betfair_api import (
     OP,
@@ -14,19 +13,9 @@ from betfairstreamer.models.betfair_api import (
     BetfairMarketSubscriptionMessage,
     BetfairOrderSubscriptionMessage,
 )
+from betfairstreamer.models.betfair_api_extensions import BetfairMessage
 from betfairstreamer.stream.stream_parser import Parser
-
-BetfairMessage = Union[
-    BetfairAuthenticationMessage, BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage,
-]
-
-
-def encode(msg: BetfairMessage) -> bytes:
-    return orjson.dumps(msg) + b"\r\n"
-
-
-def decode(msg: bytes) -> Dict[Any, Any]:
-    return orjson.loads(msg)
+from betfairstreamer.utils import encode
 
 
 async def create_async_socket() -> Tuple[StreamReader, StreamWriter]:
