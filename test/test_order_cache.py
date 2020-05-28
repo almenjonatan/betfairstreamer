@@ -1,5 +1,4 @@
-import orjson
-from betfairlightweight.resources import CurrentOrders
+import json
 
 from betfairstreamer.models.betfair_api import Side
 from betfairstreamer.models.order_cache import OrderCache
@@ -377,7 +376,7 @@ def test_list_current_orders_insert():
 
     order_cache = OrderCache.from_api_ng(current_orders["currentOrders"])
 
-    updates = order_cache.update(orjson.loads(su[0]))
+    updates = order_cache.update(json.loads(su[0]))
 
     for o in updates:
         assert (

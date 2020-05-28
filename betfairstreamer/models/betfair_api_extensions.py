@@ -1,4 +1,10 @@
-from typing import Optional, TypedDict
+from typing import Optional, TypedDict, Union
+
+from betfairstreamer.models.betfair_api import (
+    BetfairAuthenticationMessage,
+    BetfairMarketSubscriptionMessage,
+    BetfairOrderSubscriptionMessage,
+)
 
 
 class CurrentOrderSummaryRecord(TypedDict, total=False):
@@ -25,3 +31,8 @@ class CurrentOrderSummaryRecord(TypedDict, total=False):
     regulatorCode: Optional[str]
     customerOrderRef: Optional[str]
     customerStrategyRef: Optional[str]
+
+
+BetfairMessage = Union[
+    BetfairAuthenticationMessage, BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage,
+]

@@ -7,7 +7,6 @@ from typing import Dict, Generator, List, Union
 
 import attr
 import zmq
-from betfairlightweight import APIClient
 
 from betfairstreamer.models.betfair_api import BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage
 from betfairstreamer.stream.betfair_connection import BetfairConnection
@@ -58,28 +57,3 @@ class BetfairConnectionPool:
             )
 
         return connection_pool
-
-
-def create_connection_pool(
-    subscription_messages: List[Union[BetfairOrderSubscriptionMessage, BetfairMarketSubscriptionMessage]]
-) -> BetfairConnectionPool:
-    username, password, app_key, cert_path = (
-        os.environ["USERNAME"],
-        os.environ["PASSWORD"],
-        os.environ["APP_KEY"],
-        os.environ["CERT_PATH"],
-    )
-
-    cert_path = os.path.abspath(cert_path)
-
-    trading: APIClient = APIClient(username, password, app_key, certs=cert_path, locale=os.environ["LOCALE"])
-
-    trading.login()
-
-    app_key, session_token = trading.app_key, trading.session_token
-
-    connection_pool = BetfairConnectionPool.create_connection_pool(
-        subscription_messages=subscription_messages, session_token=session_token, app_key=app_key,
-    )
-
-    return connection_pool

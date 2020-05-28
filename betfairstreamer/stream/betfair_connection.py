@@ -6,7 +6,6 @@ import ssl
 from typing import Any, Dict, List, Union
 
 import attr
-import orjson
 
 from betfairstreamer.models.betfair_api import (
     OP,
@@ -14,18 +13,10 @@ from betfairstreamer.models.betfair_api import (
     BetfairMarketSubscriptionMessage,
     BetfairOrderSubscriptionMessage,
 )
+from betfairstreamer.models.betfair_api_extensions import BetfairMessage
 from betfairstreamer.stream.protocols import Connection
 from betfairstreamer.stream.stream_parser import Parser
-
-BetfairMessage = Union[BetfairAuthenticationMessage, BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage]
-
-
-def encode(msg: BetfairMessage) -> bytes:
-    return orjson.dumps(msg) + b"\r\n"
-
-
-def decode(msg: bytes) -> Dict[Any, Any]:
-    return orjson.loads(msg)
+from betfairstreamer.utils import encode
 
 
 def create_betfair_socket() -> socket.socket:

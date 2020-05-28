@@ -1,8 +1,11 @@
+import json
 from datetime import datetime, timezone
-from typing import Optional, overload
+from typing import Any, Dict, Optional, overload
 
 import ciso8601
 import pytz
+
+from betfairstreamer.models.betfair_api_extensions import BetfairMessage
 
 
 @overload
@@ -62,3 +65,11 @@ def localize_betfair_date(betfair_datetime: Optional[datetime]) -> Optional[date
         return pytz.utc.localize(betfair_datetime)
     except Exception:
         return None
+
+
+def encode(msg: BetfairMessage) -> bytes:
+    return json.dumps(msg).encode("utf-8") + b"\r\n"
+
+
+def decode(msg: bytes) -> Dict[Any, Any]:
+    return json.loads(msg)
