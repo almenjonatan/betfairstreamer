@@ -5,7 +5,7 @@ import json
 import time
 from datetime import datetime
 from itertools import chain
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import attr
 import requests
@@ -204,12 +204,13 @@ class BetfairAPIClient:
             raise ValueError("maximum page size = 100")
 
         for order_summary in create_generator_for_records(
-                self.api_ng.list_current_orders, order_filter, start_index=start_index, page_size=page_size
+            self.api_ng.list_current_orders, order_filter, start_index=start_index, page_size=page_size
         ):
             yield order_summary["currentOrders"]
 
-    def get_account_statement_generator(self, start_index=0, page_size=3,
-                                        account_statement_filter: Optional[dict] = None):
+    def get_account_statement_generator(
+        self, start_index=0, page_size=3, account_statement_filter: Optional[dict] = None
+    ):
 
         if not 0 < page_size <= 100:
             raise ValueError("min page size 1, max page size = 100")
@@ -218,8 +219,7 @@ class BetfairAPIClient:
             account_statement_filter = {}
 
         for account_statements in create_generator_for_records(
-                self.api_ng.get_account_statement, account_statement_filter, start_index=start_index,
-                page_size=page_size
+            self.api_ng.get_account_statement, account_statement_filter, start_index=start_index, page_size=page_size
         ):
             yield [
                 json.loads(statement["itemClassData"]["unknownStatementItem"])
@@ -249,7 +249,7 @@ class BetfairAPIClient:
         statements = []
 
         for account_statements in self.get_account_statement_generator(
-                start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter
+            start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter
         ):
             statements = chain(statements, account_statements)
             time.sleep(1)
@@ -258,7 +258,7 @@ class BetfairAPIClient:
 
     @classmethod
     def from_requests_backend(
-            cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
+        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
     ) -> BetfairAPIClient:
 
         http_client = BetfairHTTPClient(
@@ -295,7 +295,7 @@ class RequestTradeClient:
 
     @classmethod
     def from_requests_backend(
-            cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
+        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
     ) -> RequestTradeClient:
 
         http_client = BetfairHTTPClient(
