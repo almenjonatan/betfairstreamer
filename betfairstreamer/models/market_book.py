@@ -461,10 +461,12 @@ class MarketBook:
 
         number_of_runners = len(market_change_message["marketDefinition"]["runners"])
 
+        ladder_levels = 10
+
         market_book = cls(
             market_id=market_change_message["id"],
-            best_display=np.zeros(shape=(number_of_runners, 2, 3, 2)),
-            best_offers=np.zeros(shape=(number_of_runners, 2, 3, 2)),
+            best_display=np.zeros(shape=(number_of_runners, 2, ladder_levels, 2)),
+            best_offers=np.zeros(shape=(number_of_runners, 2, ladder_levels, 2)),
             full_price_ladder=np.zeros(shape=(number_of_runners, 2, 350, 2)),
             metadata=np.zeros(shape=(number_of_runners, 2)),
             sort_priority_mapping=create_sort_priority_mapping(market_change_message["marketDefinition"]),

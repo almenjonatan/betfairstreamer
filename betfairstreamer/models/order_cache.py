@@ -49,7 +49,7 @@ class OrderCache:
 
                 self.orders[order.bet_id] = order
                 self.orders_on_selection[key][order.bet_id] = order
-
+                self.latest_order[key] = order
         else:
             self.size_matched[key] += order.size_matched
             self.size_cancelled[key] += order.size_cancelled
@@ -58,6 +58,7 @@ class OrderCache:
 
             self.orders[order.bet_id] = order
             self.orders_on_selection[key][order.bet_id] = order
+            self.latest_order[key] = order
 
         return order
 

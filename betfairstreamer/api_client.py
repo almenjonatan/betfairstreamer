@@ -8,8 +8,8 @@ from itertools import chain
 from typing import Any, Dict, Optional, Union
 
 import attr
-
 import requests
+
 from betfairstreamer.models.betfair_api import BetfairCancelOrder, BetfairPlaceOrder, CurrentOrderSummaryReport
 
 
