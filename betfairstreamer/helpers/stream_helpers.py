@@ -11,7 +11,7 @@ from betfairstreamer.models.betfair_api import (
 
 
 def create_market_subscription(
-    market_ids: Optional[str] = None,
+    market_ids: Optional[List[str]] = None,
     bsp_market: Optional[bool] = None,
     betting_types: Optional[List[str]] = None,
     event_type_ids: Optional[List[str]] = None,
