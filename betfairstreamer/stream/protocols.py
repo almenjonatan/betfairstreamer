@@ -10,3 +10,6 @@ class Connection(Protocol):
 
     def get_socket(self) -> Union[zmq.Socket, socket.socket]:
         ...
+
+    def close(self) -> None:
+        ...

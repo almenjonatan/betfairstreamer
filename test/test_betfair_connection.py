@@ -14,7 +14,7 @@ from test.generators import generate_message
 def test_closed_connection():
     s1, s2 = socket.socketpair()
 
-    connection = BetfairConnection(s1)
+    connection = BetfairConnection(connection=s1)
 
     s2.close()
 
@@ -26,7 +26,7 @@ def test_send():
 
     order_subscription = create_order_subscription()
 
-    connection = BetfairConnection(s1)
+    connection = BetfairConnection(connection=s1)
 
     connection.send(order_subscription)
 
@@ -38,7 +38,7 @@ def test_receive(buffer_size, msg):
 
     s1, s2 = socket.socketpair()
 
-    connection = BetfairConnection(s1, buffer_size=buffer_size)
+    connection = BetfairConnection(connection=s1, buffer_size=buffer_size)
 
     s2.sendall(byte_msg)
     s2.close()
