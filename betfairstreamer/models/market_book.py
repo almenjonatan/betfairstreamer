@@ -438,7 +438,9 @@ class MarketBook:
 
     def update(self, market_change_message: BetfairMarketChange) -> None:
 
-        if market_definition := market_change_message.get("marketDefinition"):
+        market_definition = market_change_message.get("marketDefinition")
+
+        if market_definition is not None:
             old_sort_priority_mapping = self.sort_priority_mapping.copy()
             new_sort_priority_mapping = create_sort_priority_mapping(market_definition)
 

@@ -19,7 +19,6 @@ class BetfairConnectionPool:
     timeout: Optional[int] = None
 
     def add_connection(self, connection: Connection) -> None:
-        assert self.poller is not None
         self.poller.register(connection.get_socket(), select.POLLIN)
 
         if isinstance(connection.get_socket(), socket.socket):
@@ -29,7 +28,6 @@ class BetfairConnectionPool:
             self.connections[connection.get_socket()] = connection
 
     def remove_connection(self, fd: Union[socket.socket, zmq.Socket]) -> None:
-        assert self.poller is not None
         self.poller.unregister(fd)
 
     def read(self) -> Generator[Union[bytes, Connection], None, None]:

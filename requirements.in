@@ -10,10 +10,8 @@ pytest-cov
 pytest
 isort
 black
-pyflakes
 mypy
 attrs
-betfairlightweight
 ciso8601
 numpy
 orjson
