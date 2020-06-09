@@ -14,7 +14,7 @@ from betfairstreamer.stream.protocols import Connection
 
 @attr.s(auto_attribs=True)
 class BetfairConnectionPool:
-    poller: Optional[zmq.Poller] = attr.ib(factory=zmq.Poller)
+    poller: zmq.Poller = attr.ib(factory=zmq.Poller)
     connections: Dict[Union[int, zmq.Socket], Connection] = attr.ib(factory=dict)
     timeout: Optional[int] = None
 
@@ -34,25 +34,16 @@ class BetfairConnectionPool:
 
     def read(self) -> Generator[Union[bytes, Connection], None, None]:
 
-        assert self.poller is not None
-
         while True:
             events = self.poller.poll(self.timeout)
 
             if not events:
                 self.close()
-                self.poller = None
-                break
+                raise TimeoutError
 
             for fd, e in events:
-                try:
-                    for m in self.connections[fd].read():
-                        yield m
-                except (ConnectionError, ConnectionResetError, socket.error) as se:
-                    connection = self.connections.pop(fd)
-                    self.remove_connection(connection.get_socket())
-                    connection.close()
-                    yield connection
+                for m in self.connections[fd].read():
+                    yield m
 
     def close(self) -> None:
         for k, c in self.connections.items():
