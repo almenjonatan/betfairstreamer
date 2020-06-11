@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import time
 from datetime import datetime
 from itertools import chain
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import attr
 import requests
 
 from betfairstreamer.models.betfair_api import BetfairCancelOrder, BetfairPlaceOrder, CurrentOrderSummaryReport
+
+logger = logging.getLogger("betfair_api_client")
 
 
 def session_header(f):
@@ -18,7 +21,11 @@ def session_header(f):
     def session_wrapper(self: BetfairHTTPClient, *args, **kwargs):
         session_token = self.get_session_token()
 
-        h = {"X-Application": self.app_key, "X-Authentication": session_token, "content-type": "application/json"}
+        h = {
+            "X-Application": self.app_key,
+            "X-Authentication": session_token,
+            "content-type": "application/json",
+        }
 
         return f(self, *args, **kwargs, header=h)
 
@@ -68,9 +75,14 @@ class BetfairHTTPClient:
 
         payload = {"username": self.username, "password": self.password}
 
-        headers = {"X-Application": self.app_key, "Content-Type": "application/x-www-form-urlencoded"}
+        headers = {
+            "X-Application": self.app_key,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
 
-        resp = self.session.post(endpoint, data=payload, cert=(self.cert_crt_path, self.cert_key_path), headers=headers)
+        resp = self.session.post(
+            endpoint, data=payload, cert=(self.cert_crt_path, self.cert_key_path), headers=headers,
+        )
 
         if resp.status_code == 200:
             res = resp.json()
@@ -82,7 +94,7 @@ class BetfairHTTPClient:
                 return self.session_token
 
     @session_header
-    def send(self, operation: str, payload: Dict[str, Any], header: str) -> None:
+    def send(self, operation: str, payload: Dict[str, Any], header: str):
         response = requests.post(operation, data=json.dumps(payload), headers=header)
         return response.json()
 
@@ -181,7 +193,7 @@ class BetfairNGClient:
         operation = self.endpoints["ACCOUNT"] + "getAccountStatement/"
         return self.betfair_http_client.send(operation, params)
 
-    def list_currency_rates(self, params):
+    def list_currency_rates(self, params) -> List:
         operation = self.endpoints["ACCOUNT"] + "listCurrencyRates/"
         return self.betfair_http_client.send(operation, params)
 
@@ -204,12 +216,12 @@ class BetfairAPIClient:
             raise ValueError("maximum page size = 100")
 
         for order_summary in create_generator_for_records(
-            self.api_ng.list_current_orders, order_filter, start_index=start_index, page_size=page_size
+            self.api_ng.list_current_orders, order_filter, start_index=start_index, page_size=page_size,
         ):
             yield order_summary["currentOrders"]
 
     def get_account_statement_generator(
-        self, start_index=0, page_size=3, account_statement_filter: Optional[dict] = None
+        self, start_index=0, page_size=3, account_statement_filter: Optional[dict] = None,
     ):
 
         if not 0 < page_size <= 100:
@@ -219,7 +231,7 @@ class BetfairAPIClient:
             account_statement_filter = {}
 
         for account_statements in create_generator_for_records(
-            self.api_ng.get_account_statement, account_statement_filter, start_index=start_index, page_size=page_size
+            self.api_ng.get_account_statement, account_statement_filter, start_index=start_index, page_size=page_size,
         ):
             yield [
                 json.loads(statement["itemClassData"]["unknownStatementItem"])
@@ -242,23 +254,33 @@ class BetfairAPIClient:
 
         return orders
 
-    def get_account_statements(self, start_index=0, page_size=100, account_statement_filter: Optional[dict] = None):
+    def get_account_statements(
+        self, start_index=0, page_size=100, account_statement_filter: Optional[dict] = None,
+    ):
         if account_statement_filter is None:
             account_statement_filter = {}
 
         statements = []
 
         for account_statements in self.get_account_statement_generator(
-            start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter
+            start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter,
         ):
             statements = chain(statements, account_statements)
             time.sleep(1)
 
         return list(statements)
 
+    def get_currency_rate(self, currency_code: str):
+        l = list(filter(lambda c: c["currencyCode"] == currency_code, self.api_ng.list_currency_rates({}),))
+
+        if l:
+            return l[0]["rate"]
+
+        return []
+
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
+        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str,
     ) -> BetfairAPIClient:
 
         http_client = BetfairHTTPClient(
@@ -295,7 +317,7 @@ class RequestTradeClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str
+        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str,
     ) -> RequestTradeClient:
 
         http_client = BetfairHTTPClient(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import socket
 import ssl
@@ -13,16 +14,7 @@ from betfairstreamer.stream.protocols import Connection
 from betfairstreamer.stream.stream_parser import Parser
 from betfairstreamer.utils import decode, encode
 
-logger = logging.getLogger("BETFAIR_CONNECTION")
-logger.setLevel(logging.DEBUG)
-
-c_handler = logging.StreamHandler()
-c_handler.setLevel(logging.INFO)
-
-c_format = logging.Formatter(fmt="%(asctime)s:%(name)s:%(message)s")
-c_handler.setFormatter(c_format)
-
-logger.addHandler(c_handler)
+logger = logging.getLogger("betfair_connection")
 
 
 def create_auth_message(auth_id: int, session_token: str, app_key: str) -> BetfairAuthenticationMessage:
@@ -90,7 +82,6 @@ class BetfairConnection(Connection):
         connected_response = decode(self.read()[0])
         logger.info(f'Connected, connection id: {connected_response["connectionId"]}')
 
-        logger.info(f"authenticating ...")
         self.send(auth_message)
 
         auth_response = decode(self.read()[0])
@@ -98,6 +89,6 @@ class BetfairConnection(Connection):
         logger.info(
             f'authentication, {auth_response["statusCode"]}, connections available: {auth_response["connectionsAvailable"]}'
         )
-        logger.info("Sending subscription message ...")
+        logger.debug(json.dumps(subscription_message))
         self.send(subscription_message)
         logger.info(f"Subscribed, {decode(self.read()[0])['statusCode']}")

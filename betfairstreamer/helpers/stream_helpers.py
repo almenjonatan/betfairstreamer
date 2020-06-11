@@ -48,7 +48,13 @@ def create_market_subscription(
 
         assert isinstance(betting_types, list), "betting_types should be of instance, " + str(list)
 
-        betting_types_entries = {"ODDS", "LINE", "RANGE", "ASIAN_HANDICAP_DOUBLE_LINE", "ASIAN_HANDICAP_SINGLE_LINE"}
+        betting_types_entries = {
+            "ODDS",
+            "LINE",
+            "RANGE",
+            "ASIAN_HANDICAP_DOUBLE_LINE",
+            "ASIAN_HANDICAP_SINGLE_LINE",
+        }
 
         for betting_type in betting_types:
             assert isinstance(betting_type, str), "betting type should be of instance " + str(str)

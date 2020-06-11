@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import select
 import socket
 from typing import Dict, Generator, List, Optional, Union
@@ -10,6 +11,8 @@ import zmq
 from betfairstreamer.models.betfair_api import BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage
 from betfairstreamer.stream.betfair_connection import BetfairConnection
 from betfairstreamer.stream.protocols import Connection
+
+logger = logging.getLogger("betfair_connection_pool")
 
 
 @attr.s(auto_attribs=True)

@@ -363,7 +363,7 @@ BETFAIR_TICKS = [
 FULL_PRICE_LADDER_INDEX = dict(zip(BETFAIR_TICKS, range(len(BETFAIR_TICKS))))
 
 
-def create_sort_priority_mapping(market_definition: BetfairMarketDefinition) -> Dict[int, int]:
+def create_sort_priority_mapping(market_definition: BetfairMarketDefinition,) -> Dict[int, int]:
     return {r["id"]: r["sortPriority"] for r in market_definition["runners"]}
 
 
