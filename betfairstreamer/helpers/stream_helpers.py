@@ -89,7 +89,7 @@ def create_market_subscription(
 
     if market_types is not None:
 
-        assert isinstance(event_type_ids, list), "market_types should be of instance, " + str(list)
+        assert isinstance(market_types, list), "market_types should be of instance, " + str(list)
 
         for market_type in market_types:
             assert isinstance(market_type, str), "market_types should only contain " + str(str)
@@ -115,7 +115,7 @@ def create_market_subscription(
 
     if race_types is not None:
 
-        assert isinstance(venues, list), "race_types should be of instance, " + str(list)
+        assert isinstance(race_types, list), "race_types should be of instance, " + str(list)
 
         for r in race_types:
             assert isinstance(r, str), "race_types should only contain " + str(str)
