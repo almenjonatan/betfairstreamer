@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-import select
 import socket
+import time
 from typing import Dict, Generator, List, Optional, Union
 
 import attr
@@ -17,12 +17,12 @@ logger = logging.getLogger("betfair_connection_pool")
 
 @attr.s(auto_attribs=True)
 class BetfairConnectionPool:
+    timeout: Optional[int] = None
     poller: zmq.Poller = attr.ib(factory=zmq.Poller)
     connections: Dict[Union[int, zmq.Socket], Connection] = attr.ib(factory=dict)
-    timeout: Optional[int] = None
 
     def add_connection(self, connection: Connection) -> None:
-        self.poller.register(connection.get_socket(), select.POLLIN)
+        self.poller.register(connection.get_socket(), zmq.POLLIN)
 
         if isinstance(connection.get_socket(), socket.socket):
             self.connections[connection.get_socket().fileno()] = connection
@@ -39,7 +39,6 @@ class BetfairConnectionPool:
             events = self.poller.poll(self.timeout)
 
             if not events:
-                self.close()
                 raise TimeoutError
 
             for fd, e in events:
@@ -61,8 +60,8 @@ class BetfairConnectionPool:
         connection_pool = cls(timeout=timeout)
 
         for subscription_message in subscription_messages:
-            connection = BetfairConnection()
-            connection.connect(session_token, app_key, subscription_message)
+            connection = BetfairConnection(app_key=app_key)
+            connection.connect(session_token, subscription_message)
 
             connection_pool.add_connection(connection)
 

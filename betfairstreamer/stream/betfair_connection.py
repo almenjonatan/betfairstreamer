@@ -41,6 +41,7 @@ def create_betfair_socket() -> socket.socket:
 
 @attr.s(auto_attribs=True, slots=True)
 class BetfairConnection(Connection):
+    app_key: str
     buffer_size: int = 8192
     parser: Parser = attr.Factory(Parser)
     connection: Optional[socket.socket] = None
@@ -73,22 +74,28 @@ class BetfairConnection(Connection):
         else:
             self.connection = None
 
-    def connect(self, session_token: str, app_key: str, subscription_message: BetfairMessage) -> None:
+    def connect(self, session_token: str, subscription_message: BetfairMessage) -> None:
         self.close()
         self.connection = create_betfair_socket()
 
-        auth_message = create_auth_message(subscription_message["id"], session_token=session_token, app_key=app_key)
+        self.subscription_message = subscription_message
+
+        auth_message = create_auth_message(subscription_message["id"], session_token=session_token, app_key=self.app_key)
 
         connected_response = decode(self.read()[0])
-        logger.info(f'Connected, connection id: {connected_response["connectionId"]}')
+
+        logger.info(connected_response)
 
         self.send(auth_message)
 
         auth_response = decode(self.read()[0])
 
-        logger.info(
-            f'authentication, {auth_response["statusCode"]}, connections available: {auth_response["connectionsAvailable"]}'
-        )
+        logger.info(auth_response)
+
+        if auth_response["statusCode"] == "FAILURE":
+            raise ConnectionError(auth_response["errorCode"])
+
         logger.debug(json.dumps(subscription_message))
+
         self.send(subscription_message)
-        logger.info(f"Subscribed, {decode(self.read()[0])['statusCode']}")
+        logger.info(f"Subscription, {decode(self.read()[0])['statusCode']}")
