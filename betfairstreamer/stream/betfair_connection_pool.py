@@ -29,7 +29,9 @@ class BetfairConnectionPool:
         if isinstance(connection.get_socket(), zmq.Socket):
             self.connections[connection.get_socket()] = connection
 
-    def remove_connection(self, fd: Union[socket.socket, zmq.Socket]) -> None:
+    def remove_connection(self, connection: Connection) -> None:
+        connection.close()
+        fd = connection.get_socket()
         self.poller.unregister(fd)
 
     def read(self) -> Generator[Union[bytes, Connection], None, None]:

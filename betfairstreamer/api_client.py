@@ -259,7 +259,11 @@ class BetfairAPIClient:
         return orders
 
     def get_account_statements(
-        self, start_index=0, page_size=100, account_statement_filter: Optional[dict] = None,
+        self,
+        start_index=0,
+        page_size=100,
+        account_statement_filter: Optional[dict] = None,
+        delay_between_page_fetch=0.5,
     ):
         if account_statement_filter is None:
             account_statement_filter = {}
@@ -270,7 +274,7 @@ class BetfairAPIClient:
             start_index=start_index, page_size=page_size, account_statement_filter=account_statement_filter,
         ):
             statements = chain(statements, account_statements)
-            time.sleep(1)
+            time.sleep(delay_between_page_fetch)
 
         return list(statements)
 
