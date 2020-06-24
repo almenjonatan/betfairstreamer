@@ -1,17 +1,37 @@
 # Betfairstreamer
 
-What this library provides
-
+## Features
 * Run single or multiple streams simultaneously.
-* Market cache and order cache, these provide abstractions over the betfairstream.
-* Using numpy arrays to slicing markets selections.
-* Async streaming (Optional).
+* Making use numpy arrays to access market price/size.
+* Synchronous and asynchronous streaming.
 * Parse historical data.
 
 ## Installation
 
+!! Requires >= 3.8.0
+
+### Conda installation
 ```
-pip install betfairstreamer==0.7.0
+# If you already have an environment
+
+conda activate your_environment
+conda install -c anaconda python=3.8
+pip install betfairstreamer==0.8.0
+
+# If not, create an environment with python 3.8
+
+conda create -n your_environment_name python=3.8
+conda activate your_environment_name
+pip install betfairstreamer==0.8.0
+
+```
+### Virtual environment installation
+```
+mkdir your_project
+cd your_project
+python3.8 -m venv venv
+source venv/bin/activate
+pip install betfairstreamer==0.8.0
 ```
 
 ## Examples

@@ -71,7 +71,7 @@ class BetfairHTTPClient:
 
     def login(self) -> Optional[str]:
 
-        endpoint = self.cert_endpoints.get(self.locale, "DEFAULT")
+        endpoint = self.cert_endpoints.get(self.locale, self.cert_endpoints["DEFAULT"])
 
         payload = {"username": self.username, "password": self.password}
 
@@ -87,11 +87,15 @@ class BetfairHTTPClient:
         if resp.status_code == 200:
             res = resp.json()
 
-            if res["loginStatus"] == "SUCCESS":
-                self.session_token = res["sessionToken"]
-                self.session_fetched_date = datetime.now()
+            if res["loginStatus"] != "SUCCESS":
+                raise ConnectionError("Could not login to betfair due to, " + res["loginStatus"])
 
-                return self.session_token
+            self.session_token = res["sessionToken"]
+            self.session_fetched_date = datetime.now()
+
+            return self.session_token
+
+        raise ConnectionError("Could not connect to betfair servers, status code: " + str(resp.status_code))
 
     @session_header
     def send(self, operation: str, payload: Dict[str, Any], header: str):
@@ -271,10 +275,10 @@ class BetfairAPIClient:
         return list(statements)
 
     def get_currency_rate(self, currency_code: str):
-        l = list(filter(lambda c: c["currencyCode"] == currency_code, self.api_ng.list_currency_rates({}),))
+        currencies = list(filter(lambda c: c["currencyCode"] == currency_code, self.api_ng.list_currency_rates({})))
 
-        if l:
-            return l[0]["rate"]
+        if currencies:
+            return currencies[0]["rate"]
 
         return []
 
@@ -293,12 +297,11 @@ class BetfairAPIClient:
         )
 
         api_ng = BetfairNGClient(http_client)
-
         return cls(api_ng)
 
 
 @attr.s(auto_attribs=True, slots=True)
-class RequestTradeClient:
+class TradeClient:
     http_client: BetfairHTTPClient
 
     operations = {
@@ -318,7 +321,7 @@ class RequestTradeClient:
     @classmethod
     def from_requests_backend(
         cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str,
-    ) -> RequestTradeClient:
+    ) -> TradeClient:
 
         http_client = BetfairHTTPClient(
             username=username,

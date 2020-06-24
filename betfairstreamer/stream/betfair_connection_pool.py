@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import socket
-import time
 from typing import Dict, Generator, List, Optional, Union
 
 import attr

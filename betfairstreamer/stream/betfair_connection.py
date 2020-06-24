@@ -49,8 +49,6 @@ class BetfairConnection(Connection):
 
     def read(self) -> List[bytes]:
 
-        assert self.connection is not None, "Must have a socket"
-
         part = self.connection.recv(self.buffer_size)
 
         if part == b"":
@@ -59,8 +57,6 @@ class BetfairConnection(Connection):
         return self.parser.parse_message(part)
 
     def get_socket(self) -> socket.socket:
-        assert self.connection is not None, "Socket cannot be None"
-
         return self.connection
 
     def send(self, betfair_msg: BetfairMessage) -> None:
@@ -80,7 +76,9 @@ class BetfairConnection(Connection):
 
         self.subscription_message = subscription_message
 
-        auth_message = create_auth_message(subscription_message["id"], session_token=session_token, app_key=self.app_key)
+        auth_message = create_auth_message(
+            subscription_message["id"], session_token=session_token, app_key=self.app_key
+        )
 
         connected_response = decode(self.read()[0])
 
