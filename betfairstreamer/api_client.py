@@ -284,7 +284,7 @@ class BetfairAPIClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str,
+        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str = "",
     ) -> BetfairAPIClient:
 
         http_client = BetfairHTTPClient(
@@ -320,7 +320,7 @@ class TradeClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str,
+        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str = "",
     ) -> TradeClient:
 
         http_client = BetfairHTTPClient(
