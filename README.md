@@ -2,7 +2,7 @@
 
 ## Features
 * Run single or multiple streams simultaneously.
-* Making use numpy arrays to access market price/size.
+* Making use of numpy arrays to access market price/size.
 * Synchronous and asynchronous streaming.
 * Parse historical data.
 
