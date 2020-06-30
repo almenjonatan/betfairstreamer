@@ -37,6 +37,13 @@ class MarketCache(Generic[T]):
 
         return updated_market_books
 
+    def serialise(self):
+        return {
+            "op": "mcm",
+            "pt": self.publish_time,
+            "mc": [market_book.serialise() for market_id, market_book in self.market_books.items()]
+        }
+
     def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[T]:
 
         if "pt" not in stream_update:
