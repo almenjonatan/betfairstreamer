@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from typing import Dict, List
+from collections import defaultdict
+from typing import Dict, List, Tuple
 
 import attr
 import numpy as np
 
-from betfairstreamer.models.betfair_api import BetfairMarketChange, BetfairMarketDefinition, BetfairRunnerChange
+from betfairstreamer.models.betfair_api import (
+    BetfairMarketChange,
+    BetfairMarketDefinition,
+    BetfairRunnerChange,
+)
 
 BETFAIR_TICKS = [
     1.01,
@@ -368,7 +373,7 @@ def create_sort_priority_mapping(market_definition: BetfairMarketDefinition,) ->
 
 
 @attr.s(slots=True, auto_attribs=True)
-class MarketBook:
+class NumpyMarketBook:
     market_id: str
     market_definition: BetfairMarketDefinition
     metadata: np.ndarray
@@ -459,7 +464,7 @@ class MarketBook:
         self.update_runners(market_change_message.get("rc", []))
 
     @classmethod
-    def create_new_market_book(cls, market_change_message: BetfairMarketChange) -> MarketBook:
+    def create_new_market_book(cls, market_change_message: BetfairMarketChange) -> NumpyMarketBook:
 
         number_of_runners = len(market_change_message["marketDefinition"]["runners"])
 
@@ -475,5 +480,72 @@ class MarketBook:
             market_definition=market_change_message["marketDefinition"],
             trd=np.zeros(shape=(number_of_runners, 350, 2)),
         )
+
+        market_book.update(market_change_message)
+
+        return market_book
+
+
+def update_index_point(runner_change, key, side, book, size_index) -> None:
+    selection_id = runner_change["id"]
+
+    for update in runner_change.get(key, []):
+        selection = book[(selection_id, side)]
+
+        if update[size_index] == 0.0:
+            selection.pop(update[0], None)
+        else:
+            selection[update[0]] = update
+
+
+@attr.s(auto_attribs=True, slots=True)
+class DictMarketBook:
+    market_id: str
+    market_definition: dict
+
+    all_offers: Dict[Tuple[int, str], Dict[int, List]] = attr.Factory(lambda: defaultdict(dict))
+    best_offers: Dict[Tuple[int, str], Dict[int, List]] = attr.Factory(lambda: defaultdict(dict))
+    best_display: Dict[Tuple[int, str], Dict[int, List]] = attr.Factory(lambda: defaultdict(dict))
+
+    def update(self, market_update):
+
+        if "marketDefinition" in self.market_definition:
+            self.market_definition = market_update["marketDefinition"]
+
+        for runner_change in market_update.get("rc"):
+            update_index_point(runner_change, "bdatb", "BACK", self.best_display, 2)
+            update_index_point(runner_change, "bdatl", "LAY", self.best_display, 2)
+
+            update_index_point(runner_change, "batb", "BACK", self.best_offers, 2)
+            update_index_point(runner_change, "batl", "LAY", self.best_offers, 2)
+
+            update_index_point(runner_change, "atb", "BACK", self.all_offers, 1)
+            update_index_point(runner_change, "atl", "LAY", self.all_offers, 1)
+
+    def serialise(self) -> BetfairMarketChange:
+        selection_ids = [runner["id"] for runner in self.market_definition["runners"]]
+
+        rc = []
+
+        for selection_id in selection_ids:
+            tmp = {
+                "bdatb": list(self.best_display.get((selection_id, "BACK"), {}).values()),
+                "bdatl": list(self.best_display.get((selection_id, "LAY"), {}).values()),
+                "atb": list(self.all_offers.get((selection_id, "BACK"), {}).values()),
+                "atl": list(self.all_offers.get((selection_id, "LAY"), {}).values()),
+                "batb": list(self.best_offers.get((selection_id, "BACK"), {}).values()),
+                "batl": list(self.best_offers.get((selection_id, "LAY"), {}).values()),
+                "id": selection_id,
+            }
+
+            rc.append(tmp)
+
+        return {"id": self.market_id, "rc": rc, "marketDefinition": self.market_definition}
+
+    @classmethod
+    def create_new_market_book(cls, market_update) -> DictMarketBook:
+        market_book = cls(market_id=market_update["id"], market_definition=market_update["marketDefinition"])
+
+        market_book.update(market_update)
 
         return market_book

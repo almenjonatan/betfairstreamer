@@ -7,7 +7,10 @@ from typing import Dict, Generator, List, Optional, Union
 import attr
 import zmq
 
-from betfairstreamer.models.betfair_api import BetfairMarketSubscriptionMessage, BetfairOrderSubscriptionMessage
+from betfairstreamer.models.betfair_api import (
+    BetfairMarketSubscriptionMessage,
+    BetfairOrderSubscriptionMessage,
+)
 from betfairstreamer.stream.betfair_connection import BetfairConnection
 from betfairstreamer.stream.protocols import Connection
 

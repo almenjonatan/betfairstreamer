@@ -59,7 +59,10 @@ def create_market_subscription(
         for betting_type in betting_types:
             assert isinstance(betting_type, str), "betting type should be of instance " + str(str)
             assert betting_type in betting_types_entries, (
-                betting_type + " is not a valid betting type\n" + "valid betting types: " + str(betting_types_entries)
+                betting_type
+                + " is not a valid betting type\n"
+                + "valid betting types: "
+                + str(betting_types_entries)
             )
 
         market_filter["bettingTypes"] = betting_types
@@ -137,7 +140,9 @@ def create_market_subscription(
         }
         for f in fields:
             assert isinstance(f, str), "fields should only contain " + str(str)
-            assert f in valid_fields, "field " + f + " not in valid fields\nvalid fields: " + str(valid_fields)
+            assert f in valid_fields, (
+                "field " + f + " not in valid fields\nvalid fields: " + str(valid_fields)
+            )
 
         market_data_filter["fields"] = fields
 

@@ -20,7 +20,9 @@ class OrderCache:
     size_remaining: Dict[Tuple[str, int, Side], float] = attr.Factory(lambda: defaultdict(float))
     market_orders: Dict[Tuple[str, int, Side], Dict[str, Order]] = attr.Factory(lambda: defaultdict(dict))
 
-    orders_on_selection: Dict[Tuple[str, int, Side], Dict[str, Order]] = attr.Factory(lambda: defaultdict(dict))
+    orders_on_selection: Dict[Tuple[str, int, Side], Dict[str, Order]] = attr.Factory(
+        lambda: defaultdict(dict)
+    )
 
     latest_order: Dict[Tuple[str, int, Side], Order] = attr.Factory(dict)
 
@@ -95,7 +97,10 @@ class OrderCache:
         lay_bets_size_remaining = self.get_size_remaining(market_id, selection_id, Side.LAY)
 
         return round(
-            back_bets_size_matched + back_bets_size_remaining - lay_bets_size_remaining - lay_bets_size_matched
+            back_bets_size_matched
+            + back_bets_size_remaining
+            - lay_bets_size_remaining
+            - lay_bets_size_matched
         )
 
     def get_matched_balanced(self, market_id: str, selection_id: int) -> float:

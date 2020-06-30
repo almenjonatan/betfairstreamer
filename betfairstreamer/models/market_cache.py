@@ -1,22 +1,24 @@
-from typing import Callable, Dict, List
+from __future__ import annotations
 
-import attr
+from typing import Dict, List, Type, TypeVar, Generic
 
-from betfairstreamer.models.betfair_api import BetfairMarketChange, BetfairMarketChangeMessage
-from betfairstreamer.models.market_book import MarketBook
+from betfairstreamer.models.betfair_api import BetfairMarketChangeMessage
+from betfairstreamer.models.market_book import NumpyMarketBook, DictMarketBook
 
-
-def market_book_producer(market_update: BetfairMarketChange) -> MarketBook:
-    return MarketBook.create_new_market_book(market_update)
+T = TypeVar("T", NumpyMarketBook, DictMarketBook)
 
 
-@attr.s(auto_attribs=True, slots=True)
-class MarketCache:
-    market_books: Dict[str, MarketBook] = attr.Factory(dict)
-    publish_time: int = 0
-    market_book_factory: Callable[[BetfairMarketChange], MarketBook] = market_book_producer
+class MarketCache(Generic[T]):
+    def __init__(self, market_book_type: Type[T]):
 
-    def update(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
+        self.market_books: Dict[str, T] = {}
+        self.market_book_type: Type[T] = market_book_type
+        self.publish_time = 0
+
+    def update(self, stream_update: BetfairMarketChangeMessage) -> List[T]:
+
+        if "pt" not in stream_update:
+            return []
 
         updated_market_books = []
 
@@ -24,19 +26,18 @@ class MarketCache:
 
         for market_update in stream_update.get("mc", []):
 
-            market_book = self.market_books.get(market_update["id"])
-
-            if market_book is None:
-                market_book = self.market_book_factory(market_update)
+            if market_update.get("img"):
+                market_book = self.market_book_type.create_new_market_book(market_update)
                 self.market_books[market_book.market_id] = market_book
-
-            market_book.update(market_update)
+            else:
+                market_book = self.market_books[market_update["id"]]
+                market_book.update(market_update)
 
             updated_market_books.append(market_book)
 
         return updated_market_books
 
-    def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
+    def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[T]:
 
         if "pt" not in stream_update:
             return []

@@ -11,7 +11,11 @@ from typing import Any, Dict, List, Optional, Union
 import attr
 import requests
 
-from betfairstreamer.models.betfair_api import BetfairCancelOrder, BetfairPlaceOrder, CurrentOrderSummaryReport
+from betfairstreamer.models.betfair_api import (
+    BetfairCancelOrder,
+    BetfairPlaceOrder,
+    CurrentOrderSummaryReport,
+)
 
 logger = logging.getLogger("betfair_api_client")
 
@@ -235,7 +239,10 @@ class BetfairAPIClient:
             account_statement_filter = {}
 
         for account_statements in create_generator_for_records(
-            self.api_ng.get_account_statement, account_statement_filter, start_index=start_index, page_size=page_size,
+            self.api_ng.get_account_statement,
+            account_statement_filter,
+            start_index=start_index,
+            page_size=page_size,
         ):
             yield [
                 json.loads(statement["itemClassData"]["unknownStatementItem"])
@@ -279,7 +286,9 @@ class BetfairAPIClient:
         return list(statements)
 
     def get_currency_rate(self, currency_code: str):
-        currencies = list(filter(lambda c: c["currencyCode"] == currency_code, self.api_ng.list_currency_rates({})))
+        currencies = list(
+            filter(lambda c: c["currencyCode"] == currency_code, self.api_ng.list_currency_rates({}))
+        )
 
         if currencies:
             return currencies[0]["rate"]
@@ -288,7 +297,13 @@ class BetfairAPIClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str = "",
+        cls,
+        username: str,
+        password: str,
+        app_key: str,
+        cert_crt_path: str,
+        cert_key_path: str,
+        locale: str = "",
     ) -> BetfairAPIClient:
 
         http_client = BetfairHTTPClient(
@@ -324,7 +339,13 @@ class TradeClient:
 
     @classmethod
     def from_requests_backend(
-        cls, username: str, password: str, app_key: str, cert_crt_path: str, cert_key_path: str, locale: str = "",
+        cls,
+        username: str,
+        password: str,
+        app_key: str,
+        cert_crt_path: str,
+        cert_key_path: str,
+        locale: str = "",
     ) -> TradeClient:
 
         http_client = BetfairHTTPClient(
