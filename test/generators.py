@@ -3,7 +3,11 @@ from typing import Any, Tuple
 import hypothesis.strategies as st
 from hypothesis.strategies import composite
 
-from betfairstreamer.models.betfair_api import RunnerStatus, BetfairMarketDefinition, BetfairMarketChangeMessage
+from betfairstreamer.models.betfair_api import (
+    BetfairMarketChangeMessage,
+    BetfairMarketDefinition,
+    RunnerStatus,
+)
 
 
 @composite
@@ -25,15 +29,21 @@ def generate_runner_definitions(draw, number_of_runners):
 
     runner_definitions = []
 
-    selection_ids = draw(st.lists(st.integers(1, 1000), min_size=2, max_size=20, unique=True))
+    selection_ids = draw(
+        st.lists(st.integers(1, 1000), min_size=2, max_size=20, unique=True)
+    )
 
     for index, selection_id in enumerate(selection_ids):
         runner_definitions.append(
-            draw(st.fixed_dictionaries({
-                "status": st.sampled_from(RunnerStatus).map(lambda v: v.value),
-                "id": st.just(selection_id),
-                "sortPriority": st.just(index + 1),
-            }))
+            draw(
+                st.fixed_dictionaries(
+                    {
+                        "status": st.sampled_from(RunnerStatus).map(lambda v: v.value),
+                        "id": st.just(selection_id),
+                        "sortPriority": st.just(index + 1),
+                    }
+                )
+            )
         )
 
     return runner_definitions
@@ -41,35 +51,39 @@ def generate_runner_definitions(draw, number_of_runners):
 
 @composite
 def generate_market_definition_from_prev_version(draw, mdf: BetfairMarketDefinition):
-    return draw(st.fixed_dictionaries({
-        "bspMarket": st.just(mdf["bspMarket"]),
-        "turnInPlayEnabled": st.just(mdf["turnInPlayEnabled"]),
-        "persistenceEnabled": st.just(mdf["persistenceEnabled"]),
-        "marketBaseRate": st.just(mdf["marketBaseRate"]),
-        "eventId": st.just(mdf["eventId"]),
-        "eventTypeId": st.just(mdf["eventTypeId"]),
-        "numberOfWinners": st.just(mdf["numberOfWinners"]),
-        "bettingType": st.just(mdf["bettingType"]),
-        "marketType": st.just(mdf["marketType"]),
-        "marketTime": st.just(mdf["marketTime"]),
-        "suspendTime": st.just(mdf["suspendTime"]),
-        "bspReconciled": st.just(mdf["bspReconciled"]),
-        "complete": st.just(mdf["complete"]),
-        "inPlay": st.just(mdf["inPlay"]),
-        "crossMatching": st.just(mdf["crossMatching"]),
-        "runnersVoidable": st.just(mdf["runnersVoidable"]),
-        "numberOfActiveRunners": st.just(mdf["numberOfActiveRunners"]),
-        "betDelay": st.just(mdf["betDelay"]),
-        "status": st.just(mdf["status"]),
-        "runners": generate_runner_definitions(len(mdf["runners"])),
-        "regulators": st.just(mdf["regulators"]),
-        "countryCode": st.just(mdf["countryCode"]),
-        "discountAllowed": st.just(mdf["discountAllowed"]),
-        "timezone": st.just(mdf["timezone"]),
-        "openDate": st.just(mdf["openDate"]),
-        "version": st.just(mdf["version"]),
-        "priceLadderDefinition": st.just(mdf["priceLadderDefinition"])
-    }))
+    return draw(
+        st.fixed_dictionaries(
+            {
+                "bspMarket": st.just(mdf["bspMarket"]),
+                "turnInPlayEnabled": st.just(mdf["turnInPlayEnabled"]),
+                "persistenceEnabled": st.just(mdf["persistenceEnabled"]),
+                "marketBaseRate": st.just(mdf["marketBaseRate"]),
+                "eventId": st.just(mdf["eventId"]),
+                "eventTypeId": st.just(mdf["eventTypeId"]),
+                "numberOfWinners": st.just(mdf["numberOfWinners"]),
+                "bettingType": st.just(mdf["bettingType"]),
+                "marketType": st.just(mdf["marketType"]),
+                "marketTime": st.just(mdf["marketTime"]),
+                "suspendTime": st.just(mdf["suspendTime"]),
+                "bspReconciled": st.just(mdf["bspReconciled"]),
+                "complete": st.just(mdf["complete"]),
+                "inPlay": st.just(mdf["inPlay"]),
+                "crossMatching": st.just(mdf["crossMatching"]),
+                "runnersVoidable": st.just(mdf["runnersVoidable"]),
+                "numberOfActiveRunners": st.just(mdf["numberOfActiveRunners"]),
+                "betDelay": st.just(mdf["betDelay"]),
+                "status": st.just(mdf["status"]),
+                "runners": generate_runner_definitions(len(mdf["runners"])),
+                "regulators": st.just(mdf["regulators"]),
+                "countryCode": st.just(mdf["countryCode"]),
+                "discountAllowed": st.just(mdf["discountAllowed"]),
+                "timezone": st.just(mdf["timezone"]),
+                "openDate": st.just(mdf["openDate"]),
+                "version": st.just(mdf["version"]),
+                "priceLadderDefinition": st.just(mdf["priceLadderDefinition"]),
+            }
+        )
+    )
 
 
 @composite
@@ -115,10 +129,11 @@ def market_definition_generator(draw) -> BetfairMarketDefinition:
 
 @composite
 def market_update_generator(draw):
-    return draw(st.builds(
-        BetfairMarketChangeMessage,
-        op=st.just("mcm"),
-        pt=st.integers(0, 100),
-        mc=st.just([])
-    ))
-
+    return draw(
+        st.builds(
+            BetfairMarketChangeMessage,
+            op=st.just("mcm"),
+            pt=st.integers(0, 100),
+            mc=st.just([]),
+        )
+    )

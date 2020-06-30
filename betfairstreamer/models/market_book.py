@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import attr
 import numpy as np
@@ -364,7 +363,6 @@ BETFAIR_TICKS = [
     990,
     1000,
 ]
-
 FULL_PRICE_LADDER_INDEX = dict(zip(BETFAIR_TICKS, range(len(BETFAIR_TICKS))))
 
 
@@ -441,6 +439,38 @@ class NumpyMarketBook:
             if "tv" in r:
                 self.metadata[sort_priority, 1] = r.get("tv")
 
+    def serialise(self) -> BetfairMarketChange:
+
+        rcs = []
+
+        for selection_id, sort_priority in self.sort_priority_mapping.items():
+            sort_priority = sort_priority - 1
+
+            atb = self.full_price_ladder[
+                sort_priority, 0, self.full_price_ladder[sort_priority, 0, :, 1] > 0, :
+            ].tolist()
+            atl = self.full_price_ladder[
+                sort_priority, 0, self.full_price_ladder[sort_priority, 1, :, 1] > 0, :
+            ].tolist()
+            trd = self.trd[sort_priority, self.trd[sort_priority, :, 1] > 0, :].tolist()
+
+            rcs.append(
+                BetfairRunnerChange(
+                    id=selection_id,
+                    bdatb=[[i] + v for i, v in enumerate(self.best_display[sort_priority, 0, :, :].tolist())],
+                    bdatl=[[i] + v for i, v in enumerate(self.best_display[sort_priority, 1, :, :].tolist())],
+                    batb=[[i] + v for i, v in enumerate(self.best_offers[sort_priority, 0, :, :].tolist())],
+                    batl=[[i] + v for i, v in enumerate(self.best_offers[sort_priority, 1, :, :].tolist())],
+                    atb=atb,
+                    atl=atl,
+                    trd=trd,
+                    ltp=self.metadata[sort_priority, 0],
+                    tv=self.metadata[sort_priority, 1],
+                )
+            )
+
+        return BetfairMarketChange(img=True, marketDefinition=self.market_definition, id=self.market_id, rc=rcs)
+
     def update(self, market_change_message: BetfairMarketChange) -> None:
 
         market_definition = market_change_message.get("marketDefinition")
@@ -482,70 +512,5 @@ class NumpyMarketBook:
         )
 
         market_book.update(market_change_message)
-
-        return market_book
-
-
-def update_index_point(runner_change, key, side, book, size_index) -> None:
-    selection_id = runner_change["id"]
-
-    for update in runner_change.get(key, []):
-        selection = book[(selection_id, side)]
-
-        if update[size_index] == 0.0:
-            selection.pop(update[0], None)
-        else:
-            selection[update[0]] = update
-
-
-@attr.s(auto_attribs=True, slots=True)
-class DictMarketBook:
-    market_id: str
-    market_definition: dict
-
-    all_offers: Dict[Tuple[int, str], Dict[int, List]] = attr.Factory(lambda: defaultdict(dict))
-    best_offers: Dict[Tuple[int, str], Dict[int, List]] = attr.Factory(lambda: defaultdict(dict))
-    best_display: Dict[Tuple[int, str], Dict[int, List]] = attr.Factory(lambda: defaultdict(dict))
-
-    def update(self, market_update):
-
-        if "marketDefinition" in self.market_definition:
-            self.market_definition = market_update["marketDefinition"]
-
-        for runner_change in market_update.get("rc"):
-            update_index_point(runner_change, "bdatb", "BACK", self.best_display, 2)
-            update_index_point(runner_change, "bdatl", "LAY", self.best_display, 2)
-
-            update_index_point(runner_change, "batb", "BACK", self.best_offers, 2)
-            update_index_point(runner_change, "batl", "LAY", self.best_offers, 2)
-
-            update_index_point(runner_change, "atb", "BACK", self.all_offers, 1)
-            update_index_point(runner_change, "atl", "LAY", self.all_offers, 1)
-
-    def serialise(self) -> BetfairMarketChange:
-        selection_ids = [runner["id"] for runner in self.market_definition["runners"]]
-
-        rc = []
-
-        for selection_id in selection_ids:
-            tmp = {
-                "bdatb": list(self.best_display.get((selection_id, "BACK"), {}).values()),
-                "bdatl": list(self.best_display.get((selection_id, "LAY"), {}).values()),
-                "atb": list(self.all_offers.get((selection_id, "BACK"), {}).values()),
-                "atl": list(self.all_offers.get((selection_id, "LAY"), {}).values()),
-                "batb": list(self.best_offers.get((selection_id, "BACK"), {}).values()),
-                "batl": list(self.best_offers.get((selection_id, "LAY"), {}).values()),
-                "id": selection_id,
-            }
-
-            rc.append(tmp)
-
-        return {"id": self.market_id, "rc": rc, "marketDefinition": self.market_definition}
-
-    @classmethod
-    def create_new_market_book(cls, market_update) -> DictMarketBook:
-        market_book = cls(market_id=market_update["id"], market_definition=market_update["marketDefinition"])
-
-        market_book.update(market_update)
 
         return market_book

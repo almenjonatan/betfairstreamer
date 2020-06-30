@@ -1,22 +1,24 @@
 from itertools import groupby
+from test.generators import generate_runner_definitions, market_definition_generator
 
 import hypothesis.strategies as st
 import numpy as np
 from hypothesis import given
 
-from betfairstreamer.models.betfair_api import BetfairMarketDefinition, BetfairMarketChangeMessage, BetfairMarketChange, \
-    BetfairRunnerChange
-from betfairstreamer.models.market_cache import MarketCache
-
-from test.generators import (
-    market_definition_generator,
-    generate_runner_definitions
+from betfairstreamer.models.betfair_api import (
+    BetfairMarketChange,
+    BetfairMarketChangeMessage,
+    BetfairMarketDefinition,
+    BetfairRunnerChange,
 )
+from betfairstreamer.models.market_cache import MarketCache
 
 
 @given(st.data(), st.integers(2, 20))
 def test_runner_change_generator(data, number_of_runners):
-    runner_definitions = data.draw(generate_runner_definitions(number_of_runners=number_of_runners))
+    runner_definitions = data.draw(
+        generate_runner_definitions(number_of_runners=number_of_runners)
+    )
     grouped_selection_ids = groupby(runner_definitions, key=lambda r: r["id"])
 
     # Check that each group has exactly one runner definition, uniqueness of selection id
@@ -39,11 +41,8 @@ def test_market_cache_status_change(data):
 
     market_change_message = BetfairMarketChangeMessage(
         op="mcm",
-        mc=[
-            BetfairMarketChange(id=market_id,
-                                marketDefinition=mdf)
-        ],
-        pt=1
+        mc=[BetfairMarketChange(id=market_id, marketDefinition=mdf, img=True)],
+        pt=1,
     )
 
     market_cache(market_change_message)
@@ -60,27 +59,21 @@ def test_runner_selection_id_change(data):
 
     mcm = BetfairMarketChangeMessage(
         op="mcm",
-        mc=[BetfairMarketChange(
-            id="1.2",
-            marketDefinition=mdf
-        )],
-        pt=1
+        mc=[BetfairMarketChange(id="1.2", marketDefinition=mdf, img=True)],
+        pt=1,
     )
 
     market_books = market_cache(mcm)
 
     r1_id, r2_id = [rd["id"] for rd in market_books[0].market_definition["runners"][:2]]
 
-    rc = [BetfairRunnerChange(id=r1_id, bdatb=[[0, 1.2, 24]]),
-          BetfairRunnerChange(id=r2_id, bdatb=[[0, 1.4, 30]])]
+    rc = [
+        BetfairRunnerChange(id=r1_id, bdatb=[[0, 1.2, 24]]),
+        BetfairRunnerChange(id=r2_id, bdatb=[[0, 1.4, 30]]),
+    ]
 
     mcm = BetfairMarketChangeMessage(
-        op="mcm",
-        mc=[BetfairMarketChange(
-            id="1.2",
-            rc=rc
-        )],
-        pt=2
+        op="mcm", mc=[BetfairMarketChange(id="1.2", rc=rc,)], pt=2
     )
 
     market_books = market_cache(mcm)
@@ -94,12 +87,7 @@ def test_runner_selection_id_change(data):
     mdf["runners"][1]["id"] = r1_id
 
     mcm = BetfairMarketChangeMessage(
-        op="mcm",
-        mc=[BetfairMarketChange(
-            id="1.2",
-            marketDefinition=mdf
-        )],
-        pt=2
+        op="mcm", mc=[BetfairMarketChange(id="1.2", marketDefinition=mdf)], pt=2
     )
 
     market_books = market_cache(mcm)
