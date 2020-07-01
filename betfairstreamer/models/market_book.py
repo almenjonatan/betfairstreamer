@@ -450,7 +450,7 @@ class NumpyMarketBook:
                 sort_priority, 0, self.full_price_ladder[sort_priority, 0, :, 1] > 0, :
             ].tolist()
             atl = self.full_price_ladder[
-                sort_priority, 0, self.full_price_ladder[sort_priority, 1, :, 1] > 0, :
+                sort_priority, 1, self.full_price_ladder[sort_priority, 1, :, 1] > 0, :
             ].tolist()
             trd = self.trd[sort_priority, self.trd[sort_priority, :, 1] > 0, :].tolist()
 
