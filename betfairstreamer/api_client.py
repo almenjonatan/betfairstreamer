@@ -9,8 +9,8 @@ from itertools import chain
 from typing import Any, Dict, List, Optional, Union
 
 import attr
-
 import requests
+
 from betfairstreamer.models.betfair_api import (
     BetfairCancelOrder,
     BetfairPlaceOrder,
@@ -29,6 +29,7 @@ def session_header(f):
             "X-Application": self.app_key,
             "X-Authentication": session_token,
             "content-type": "application/json",
+            "Accept-Encoding": "gzip, deflate",
         }
 
         return f(self, *args, **kwargs, header=h)
@@ -65,7 +66,16 @@ class BetfairHTTPClient:
     session: requests.Session = attr.Factory(requests.Session)
     session_fetched_date: datetime = attr.Factory(lambda: datetime(year=1970, month=1, day=1))
 
+    keep_alive_endpoints = {
+        "SE": "https://identitysso.betfair.se/api/keepAlive",
+        "RO": "https://identitysso.betfair.ro/api/keepAlive",
+        "ES": "https://identitysso.betfair.es/api/keepAlive",
+        "IT": "https://identitysso.betfair.it/api/keepAlive",
+        "DEFAULT": "https://identitysso.betfair.com/api/keepAlive",
+    }
+
     cert_endpoints = {
+        "AU": "https://identitysso-cert.betfair.au/api/certlogin",
         "SE": "https://identitysso-cert.betfair.se/api/certlogin",
         "RO": "https://identitysso-cert.betfair.ro/api/certlogin",
         "ES": "https://identitysso-cert.betfair.es/api/certlogin",
@@ -96,13 +106,40 @@ class BetfairHTTPClient:
 
             self.session_token = res["sessionToken"]
             self.session_fetched_date = datetime.now()
+            logger.info("Logged in successfully!")
 
             return self.session_token
 
         raise ConnectionError("Could not connect to betfair servers, status code: " + str(resp.status_code))
 
     @session_header
-    def send(self, operation: str, payload: Dict[str, Any], header: str):
+    def send_keep_alive(self, header):
+        endpoint = self.keep_alive_endpoints[self.locale]
+
+        header = {
+            "X-Application": self.app_key,
+            "X-Authentication": self.get_session_token(),
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+        }
+
+        res = self.session.post(endpoint, cert=(self.cert_crt_path, self.cert_key_path), headers=header)
+
+        if res.status_code == 200:
+            res = res.json()
+
+            if res["status"] == "FAIL":
+                raise ConnectionError(res["error"])
+
+            self.set_session_token(res["token"])
+
+            logger.info("Keep alive sent successfully!")
+
+        else:
+            raise ConnectionError(res.status_code)
+
+    @session_header
+    def send(self, operation: str, payload: Dict[str, Any], header: dict):
         response = requests.post(operation, data=json.dumps(payload), headers=header)
         return response.json()
 
@@ -111,9 +148,16 @@ class BetfairHTTPClient:
 
     def get_session_token(self) -> Optional[str]:
         if self.valid_session_token():
+            if (datetime.now() - self.session_fetched_date).total_seconds() > 3 * 3600:
+                self.send_keep_alive()
+
             return self.session_token
 
         return self.login()
+
+    def set_session_token(self, session_token):
+        self.session_fetched_date = datetime.now()
+        self.session_token = session_token
 
 
 @attr.s(auto_attribs=True, slots=True)
