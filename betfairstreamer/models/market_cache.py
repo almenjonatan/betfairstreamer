@@ -5,15 +5,15 @@ from typing import Dict, List
 import attr
 
 from betfairstreamer.models.betfair_api import BetfairMarketChangeMessage
-from betfairstreamer.models.market_book import NumpyMarketBook
+from betfairstreamer.models.market_book import MarketBook
 
 
 @attr.s(auto_attribs=True, slots=True)
 class MarketCache:
-    market_books: Dict[str, NumpyMarketBook] = attr.Factory(dict)
+    market_books: Dict[str, MarketBook] = attr.Factory(dict)
     publish_time: int = 0
 
-    def update(self, stream_update: BetfairMarketChangeMessage) -> List[NumpyMarketBook]:
+    def update(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
 
         if "pt" not in stream_update:
             return []
@@ -25,7 +25,7 @@ class MarketCache:
         for market_update in stream_update.get("mc", []):
 
             if market_update.get("img"):
-                market_book = NumpyMarketBook.create_new_market_book(market_update)
+                market_book = MarketBook.create_new_market_book(market_update)
                 self.market_books[market_book.market_id] = market_book
             else:
                 market_book = self.market_books[market_update["id"]]
@@ -43,7 +43,7 @@ class MarketCache:
             mc=[market_book.serialise() for market_id, market_book in self.market_books.items()],
         )
 
-    def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[NumpyMarketBook]:
+    def __call__(self, stream_update: BetfairMarketChangeMessage) -> List[MarketBook]:
 
         if "pt" not in stream_update:
             return []

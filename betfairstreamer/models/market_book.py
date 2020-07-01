@@ -371,7 +371,7 @@ def create_sort_priority_mapping(market_definition: BetfairMarketDefinition,) ->
 
 
 @attr.s(slots=True, auto_attribs=True)
-class NumpyMarketBook:
+class MarketBook:
     market_id: str
     market_definition: BetfairMarketDefinition
     metadata: np.ndarray
@@ -494,7 +494,7 @@ class NumpyMarketBook:
         self.update_runners(market_change_message.get("rc", []))
 
     @classmethod
-    def create_new_market_book(cls, market_change_message: BetfairMarketChange) -> NumpyMarketBook:
+    def create_new_market_book(cls, market_change_message: BetfairMarketChange) -> MarketBook:
 
         number_of_runners = len(market_change_message["marketDefinition"]["runners"])
 
