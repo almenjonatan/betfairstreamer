@@ -5,11 +5,7 @@ from typing import Dict, List
 import attr
 import numpy as np
 
-from betfairstreamer.models.betfair_api import (
-    BetfairMarketChange,
-    BetfairMarketDefinition,
-    BetfairRunnerChange,
-)
+from betfairstreamer.models.betfair_api import BetfairMarketChange, BetfairMarketDefinition, BetfairRunnerChange
 
 BETFAIR_TICKS = [
     1.01,

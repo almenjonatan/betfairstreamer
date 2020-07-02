@@ -1,13 +1,12 @@
 from typing import Any, Tuple
 
 import hypothesis.strategies as st
+from hypothesis import given
 from hypothesis.strategies import composite
 
-from betfairstreamer.models.betfair_api import (
-    BetfairMarketChangeMessage,
-    BetfairMarketDefinition,
-    RunnerStatus,
-)
+from betfairstreamer.models.market_book import FULL_PRICE_LADDER_INDEX, BETFAIR_TICKS
+
+prices = list(FULL_PRICE_LADDER_INDEX.keys())
 
 
 @composite
@@ -23,117 +22,144 @@ def generate_message(draw: Any) -> Tuple[int, bytes, str]:
 
 
 @composite
-def generate_runner_definitions(draw, number_of_runners):
+def price_size(draw, min_price, max_price):
+    min_price_index = FULL_PRICE_LADDER_INDEX[min_price]
+    max_price_index = FULL_PRICE_LADDER_INDEX[max_price]
 
-    assert number_of_runners <= 20
+    ps = st.tuples(
+        st.sampled_from(BETFAIR_TICKS[min_price_index:max_price_index]),
+        st.floats(min_value=0.1, max_value=1000000).map(lambda v: round(v, 2)),
+    ).map(list)
 
-    runner_definitions = []
+    return draw(ps)
 
-    selection_ids = draw(
-        st.lists(st.integers(1, 1000), min_size=2, max_size=20, unique=True)
+
+@composite
+def generate_full_price_ladder(draw):
+    price_back = sorted(
+        draw(st.lists(price_size(1.01, 1000), unique_by=lambda ps: ps[0])),
+        key=lambda l: l[0],
+        reverse=True,
     )
+    price_lay = []
 
-    for index, selection_id in enumerate(selection_ids):
-        runner_definitions.append(
-            draw(
-                st.fixed_dictionaries(
-                    {
-                        "status": st.sampled_from(RunnerStatus).map(lambda v: v.value),
-                        "id": st.just(selection_id),
-                        "sortPriority": st.just(index + 1),
-                    }
-                )
+    if price_back:
+        min_lay_price = price_back[0][0]
+
+        if min_lay_price < 1000:
+            price_lay = sorted(
+                draw(
+                    st.lists(
+                        price_size(min_price=min_lay_price, max_price=1000),
+                        unique_by=lambda ps: ps[0],
+                    )
+                ),
+                key=lambda l: l[0],
             )
-        )
 
-    return runner_definitions
-
-
-@composite
-def generate_market_definition_from_prev_version(draw, mdf: BetfairMarketDefinition):
-    return draw(
-        st.fixed_dictionaries(
-            {
-                "bspMarket": st.just(mdf["bspMarket"]),
-                "turnInPlayEnabled": st.just(mdf["turnInPlayEnabled"]),
-                "persistenceEnabled": st.just(mdf["persistenceEnabled"]),
-                "marketBaseRate": st.just(mdf["marketBaseRate"]),
-                "eventId": st.just(mdf["eventId"]),
-                "eventTypeId": st.just(mdf["eventTypeId"]),
-                "numberOfWinners": st.just(mdf["numberOfWinners"]),
-                "bettingType": st.just(mdf["bettingType"]),
-                "marketType": st.just(mdf["marketType"]),
-                "marketTime": st.just(mdf["marketTime"]),
-                "suspendTime": st.just(mdf["suspendTime"]),
-                "bspReconciled": st.just(mdf["bspReconciled"]),
-                "complete": st.just(mdf["complete"]),
-                "inPlay": st.just(mdf["inPlay"]),
-                "crossMatching": st.just(mdf["crossMatching"]),
-                "runnersVoidable": st.just(mdf["runnersVoidable"]),
-                "numberOfActiveRunners": st.just(mdf["numberOfActiveRunners"]),
-                "betDelay": st.just(mdf["betDelay"]),
-                "status": st.just(mdf["status"]),
-                "runners": generate_runner_definitions(len(mdf["runners"])),
-                "regulators": st.just(mdf["regulators"]),
-                "countryCode": st.just(mdf["countryCode"]),
-                "discountAllowed": st.just(mdf["discountAllowed"]),
-                "timezone": st.just(mdf["timezone"]),
-                "openDate": st.just(mdf["openDate"]),
-                "version": st.just(mdf["version"]),
-                "priceLadderDefinition": st.just(mdf["priceLadderDefinition"]),
-            }
-        )
-    )
+    return price_back, price_lay
 
 
 @composite
-def market_definition_generator(draw) -> BetfairMarketDefinition:
-    number_of_runners = draw(st.integers(2, 20))
+def generate_index_ladder(draw):
+    back, lay = draw(generate_full_price_ladder())
 
-    runner_definitions = draw(generate_runner_definitions(number_of_runners))
+    back = [[i] + v for i, v in enumerate(back)]
+    lay = [[i] + v for i, v in enumerate(lay)]
 
-    md = st.fixed_dictionaries(
+    return back, lay
+
+
+@composite
+def generate_runner(draw, sort_priority, selection_id):
+    runner = st.fixed_dictionaries(
         {
-            "bspMarket": st.just(False),
-            "turnInPlayEnabled": st.just(True),
-            "persistenceEnabled": st.just(True),
-            "marketBaseRate": st.just(5),
-            "eventId": st.just("29739681"),
-            "eventTypeId": st.just("1"),
-            "numberOfWinners": st.just(1),
-            "bettingType": st.just("ODDS"),
-            "marketType": st.just("MATCH_ODDS"),
-            "marketTime": st.just("2020-03-10T19:45:00.000Z"),
-            "suspendTime": st.just("2020-03-10T19:45:00.000Z"),
-            "bspReconciled": st.just(False),
-            "complete": st.just(False),
-            "inPlay": st.just(False),
-            "crossMatching": st.just(True),
-            "runnersVoidable": st.just(False),
-            "numberOfActiveRunners": st.integers(2, number_of_runners),
-            "betDelay": st.just(0),
-            "status": st.just("OPEN"),
-            "runners": st.just(runner_definitions),
-            "regulators": st.just(["MR_INT"]),
-            "countryCode": st.just("GB"),
-            "discountAllowed": st.just(True),
-            "timezone": st.just("GMT"),
-            "openDate": st.just("2020-03-10T19:45:00.000Z"),
-            "version": st.just(3212481126),
-            "priceLadderDefinition": st.just({"type": "CLASSIC"}),
-        }
+            "sortPriority": st.just(sort_priority),
+            "id": st.just(selection_id),
+            "status": st.sampled_from(
+                [
+                    "ACTIVE",
+                    "WINNER",
+                    "LOSER",
+                    "REMOVED",
+                    "REMOVED_VACANT",
+                    "HIDDEN",
+                    "PLACED",
+                    "HIDDEN",
+                    "PLACED",
+                ]
+            ),
+        },
+        optional={
+            "removalDate": st.datetimes().map(lambda d: d.isoformat()),
+            "adjustmentFactor": st.floats(0, 10).map(lambda v: round(v, 2)),
+            "bsp": st.floats(0, 10).map(lambda v: round(v, 2)),
+        },
     )
 
-    return draw(md)
+    return draw(runner)
 
 
 @composite
-def market_update_generator(draw):
-    return draw(
-        st.builds(
-            BetfairMarketChangeMessage,
-            op=st.just("mcm"),
-            pt=st.integers(0, 100),
-            mc=st.just([]),
+def generate_runners(draw):
+    number_of_runners = draw(st.integers(min_value=2, max_value=20))
+
+    sort_priorities = range(number_of_runners)
+    selection_ids = draw(
+        st.lists(
+            st.integers(min_value=1, max_value=1000000),
+            min_size=number_of_runners,
+            max_size=number_of_runners,
         )
     )
+
+    runners = []
+
+    for sort_priority, selection_id in zip(sort_priorities, selection_ids):
+        runners.append(draw(generate_runner(sort_priority, selection_id)))
+
+    return runners
+
+@composite
+def generate_market_definition(draw):
+
+    market_definition = st.fixed_dictionaries({
+        "eventId": st.integers(min_value=10000, max_value=10000000),
+        "runners": generate_runners()
+    })
+
+    return draw(market_definition)
+
+@composite
+def generate_runner_changes(draw, selection_id):
+
+    runner_changes = st.fixed_dictionaries({
+        "id": st.just(selection_id),
+    }, optional={
+        **{}
+    })
+
+    return draw(runner_changes)
+
+@composite
+def generate_market_change_image(draw):
+
+    market_definition = draw(generate_market_definition())
+
+    market_change = st.fixed_dictionaries({
+        "id": st.integers(min_value=0, max_value=10).map(lambda v: "1." + str(v)),
+        "marketDefinition": st.just(market_definition),
+        "rc": generate_runner_changes(1),
+        "img": st.just(True)
+    })
+
+    return draw(market_change)
+
+
+@given(generate_index_ladder(), generate_market_change_image())
+def test_something(price_sizes, market_definition):
+    back, lay = price_sizes
+
+    print("BACK, ", back)
+    print("LAY , ", lay)
+    print(market_definition)
